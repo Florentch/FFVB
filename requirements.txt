@@ -1,5 +1,5 @@
-streamlit
-pandas
-numpy
-plotly
+streamlit==1.45.0
+pandas==2.2.2
+numpy==1.23.5
+plotly==6.0.1
 pydatavolley==2.3
