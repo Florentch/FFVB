@@ -8,6 +8,8 @@ venv/
 
 # Fichiers de test que tu veux garder en local
 main2.py
+function.py
+team.py
 
 # Ton dossier à ignorer
 Autres/
