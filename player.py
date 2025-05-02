@@ -52,10 +52,10 @@ class Player :
 
 
 
-    def perfect(self) -> int:
-        n = len(self.df[self.df['evaluation_code'] == '#'])
-        tot = len(self.df)
-        print(f"perfect number : {n} and total actions : {tot}")
-        return  n/ tot
+    # def perfect(self) -> int:
+    #     n = len(self.df[self.df['evaluation_code'] == '#'])
+    #     tot = len(self.df)
+    #     print(f"perfect number : {n} and total actions : {tot}")
+    #     return  n/ tot
 
 
