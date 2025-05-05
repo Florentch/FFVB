@@ -4,19 +4,19 @@ import numpy as np
 import plotly.graph_objects as go
 from collections import defaultdict
 
-def reception_comparison_tab(players):
+def block_comparison_tab(players):
     """
     Affiche l'onglet de comparaison des statistiques de réception des joueurs et équipes.
     
     Args:
         players (list): Liste des objets Player à analyser
     """
-    st.header("📥 Analyse des Réceptions")
+    st.header("📥 Analyse des blocks")
 
     # Filtrer les joueurs qui ont au moins une réception
-    players_with_reception = [p for p in players if len(p.df_reception) > 0]
+    players_with_block = [p for p in players if len(p.df_block) > 0]
     
-    if not players_with_reception:
+    if not players_with_block:
         st.warning("Aucun joueur avec des données de réception n'a été trouvé.")
         return
 
@@ -28,8 +28,8 @@ def reception_comparison_tab(players):
     match_data = []
     match_ids_set = set()  # Pour éviter les doublons
     
-    for p in players_with_reception:
-        for match_id in p.df_reception['match_id'].dropna().unique():
+    for p in players_with_block:
+        for match_id in p.df_block['match_id'].dropna().unique():
             if match_id in match_ids_set:
                 continue
                 
@@ -62,11 +62,11 @@ def reception_comparison_tab(players):
 
     # Mode Par Joueurs
     if mode == "Par Joueurs":
-        display_player_stats(players_with_reception, selected_matches, moment)
+        display_player_stats(players_with_block, selected_matches, moment)
     
     # Mode Par Équipes
     elif mode == "Par Équipes":
-        display_team_stats(players_with_reception, selected_matches, moment)
+        display_team_stats(players_with_block, selected_matches, moment)
 
 
 def display_player_stats(players, selected_matches, moment):
@@ -74,7 +74,7 @@ def display_player_stats(players, selected_matches, moment):
     Affiche les statistiques individuelles des joueurs.
     
     Args:
-        players (list): Liste des joueurs avec des réceptions
+        players (list): Liste des joueurs avec des blocks
         selected_matches (list): Matchs sélectionnés
         moment (str): Moment du set
     """
@@ -102,7 +102,7 @@ def display_player_stats(players, selected_matches, moment):
     # Collecter les statistiques des joueurs
     data = []
     for p in selected_players:
-        stats = p.get_skill_stats("Reception", moment, match_filter=selected_matches)
+        stats = p.get_skill_stats("Block", moment, match_filter=selected_matches)
         if stats["Total"] > 0:
             row = {"Nom": f"{p.first_name} {p.last_name}"}
             row.update(stats)
@@ -131,12 +131,12 @@ def create_player_bar_chart(selected_players, selected_matches, moment):
     fig = go.Figure()
     
     for p in selected_players:
-        stats = p.get_skill_stats("Reception", moment, match_filter=selected_matches)
+        stats = p.get_skill_stats("Block", moment, match_filter=selected_matches)
         if stats["Total"] > 0:
             fig.add_trace(go.Bar(
-                x=["% Parfaites", "Parfaites", "Bonnes", "Mauvaises", "Ratées", "Total"],
-                y=[stats["% Parfaites"], stats["Parfaites"], stats["Bonnes"], 
-                   stats["Mauvaises"], stats["Ratées"], stats["Total"]],
+                x=["% Points", "Points", "Bon", "Soutenu", "Mauvais", "Faute de filet", "Block out", "Total"],
+                y=[stats["% Points"], stats["Points"], stats["Bon"], stats["Soutenu"],
+                   stats["Mauvais"], stats["Faute de filet"], stats["Block out"], stats["Total"]],
                 name=f"{p.first_name} {p.last_name}",
                 textposition='auto'
             ))
@@ -154,12 +154,12 @@ def create_player_bar_chart(selected_players, selected_matches, moment):
 
 def display_player_ranking(data):
     """
-    Affiche le classement des joueurs par pourcentage de réceptions parfaites.
+    Affiche le classement des joueurs par pourcentage de blocks parfaites.
     """
-    classement = sorted(data, key=lambda x: -x["% Parfaites"])
-    st.subheader("🏆 Classement : % Réceptions Parfaites")
+    classement = sorted(data, key=lambda x: -x["% Points"])
+    st.subheader("🏆 Classement : % blocks Points")
     
-    ranking_df = pd.DataFrame(classement)[["Nom", "% Parfaites", "Parfaites", "Total"]]
+    ranking_df = pd.DataFrame(classement)[["Nom", "% Points", "Points", "Total"]]
     st.table(ranking_df)
 
 
@@ -168,7 +168,7 @@ def display_team_stats(players, selected_matches, moment):
     Affiche les statistiques par équipe.
     
     Args:
-        players (list): Liste des joueurs avec des réceptions
+        players (list): Liste des joueurs avec des blocks
         selected_matches (list): Matchs sélectionnés
         moment (str): Moment du set
     """
@@ -179,16 +179,16 @@ def display_team_stats(players, selected_matches, moment):
         return
 
     # Initialiser les statistiques d'équipe
-    equipe_stats = defaultdict(lambda: {"Parfaites": 0, "Bonnes": 0, "Mauvaises": 0, "Ratées": 0, "Total": 0})
+    equipe_stats = defaultdict(lambda: {"Points": 0, "Bon": 0, "Soutenu" : 0, "Mauvais": 0, "Faute de filet": 0, "Block out" : 0, "Total": 0})
 
     # Collecter les statistiques par équipe
     for p in players:
         if not p.team:
             continue
             
-        stats = p.get_skill_stats("Reception", moment, match_filter=selected_matches)
+        stats = p.get_skill_stats("Block", moment, match_filter=selected_matches)
         if stats["Total"] > 0:
-            for k in ["Parfaites", "Bonnes", "Mauvaises", "Ratées", "Total"]:
+            for k in ["Points", "Bon", "Soutenu", "Mauvais", "Faute de filet", "Block out", "Total"]:
                 equipe_stats[p.team][k] += stats[k]
 
     # Préparer les données pour affichage
@@ -198,18 +198,22 @@ def display_team_stats(players, selected_matches, moment):
         if total == 0:
             continue
             
-        parfait_pct = round(stats["Parfaites"] / total * 100, 1)
-        bonnes_pct = round(stats["Bonnes"] / total * 100, 1)
-        mauvaises_pct = round(stats["Mauvaises"] / total * 100, 1)
-        ratees_pct = round(stats["Ratées"] / total * 100, 1)
+        point_pct = round(stats["Points"] / total * 100, 1)
+        Bon_pct = round(stats["Bon"] / total * 100, 1)
+        soutenu_pct = round(stats["Soutenu"] / total * 100, 1)
+        Mauvais_pct = round(stats["Mauvais"] / total * 100, 1)
+        faute_filet_pct = round(stats["Faute de filet"] / total * 100, 1)
+        block_out_pct = round(stats["Block out"] / total * 100, 1)
 
         table_data.append({
             "Équipe": team,
-            "% Parfaites": parfait_pct,
-            "% Bonnes": bonnes_pct,
-            "% Mauvaises": mauvaises_pct,
-            "% Ratées": ratees_pct,
-            "Nbre Total Réceptions": total  # Nom de colonne plus explicite
+            "% Points": point_pct,
+            "% Soutenu" : soutenu_pct,
+            "% Bon": Bon_pct,
+            "% Mauvais": Mauvais_pct,
+            "% Faute de filet": faute_filet_pct,
+            "% Block out": block_out_pct,
+            "Nbre Total blocks": total  # Nom de colonne plus explicite
         })
 
     if not table_data:
@@ -221,21 +225,20 @@ def display_team_stats(players, selected_matches, moment):
     st.dataframe(df_eq, use_container_width=True)
 
     # Graphiques circulaires par équipe
-    st.subheader("🧩 Répartition des réceptions par équipe")
+    st.subheader("🧩 Répartition des blocks par équipe")
     for team in df_eq.index:
         row = df_eq.loc[team]
         pie = go.Figure(data=[
             go.Pie(
-                labels=["Parfaites", "Bonnes", "Mauvaises", "Ratées"],
-                values=[row["% Parfaites"], row["% Bonnes"], row["% Mauvaises"], row["% Ratées"]],
+                labels=["Points", "Bon", "Soutenu","Mauvais", "Faute de filet", "Block out"],
+                values=[row["% Points"], row["% Bon"], row["% Soutenu"], row["% Mauvais"], row["% Faute de filet"], row["% Block out"]],
                 hole=0.4
             )
         ])
         pie.update_layout(
-            title_text=f"{team} - {row['Nbre Total Réceptions']} réceptions", 
+            title_text=f"{team} - {row['Nbre Total blocks']} blocks", 
             height=400
         )
         st.plotly_chart(pie, use_container_width=True)
-
 
         

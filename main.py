@@ -10,6 +10,8 @@ import os
 from player import Player
 from datavolley import read_dv
 from reception import reception_comparison_tab
+from block import block_comparison_tab
+from player_evolution import player_evolution_tab
 
 # Configuration de la page dès le début
 st.set_page_config(
@@ -21,7 +23,7 @@ st.set_page_config(
 # Ajout d'un titre et d'une description à l'application
 st.title("📊 Analyse de Volleyball")
 st.markdown("""
-    Application d'analyse des données de volleyball extraites de fichiers DVW de 4 Matchs (uniquement réceptions actuellement).
+    Application d'analyse des données de volleyball extraites de fichiers DVW de 4 Matchs.
     Sélectionnez un onglet dans le menu latéral pour commencer.
 """)
 
@@ -89,10 +91,6 @@ with st.sidebar:
     if len(players) > 0:
         st.write(f"📊 **{len(players)}** joueurs au total")
         
-        # Calculer et afficher les joueurs avec des réceptions
-        reception_players = [p for p in players if len(p.df_reception) > 0]
-        st.write(f"📥 **{len(reception_players)}** joueurs avec des réceptions")
-        
         # Nombre de matchs
         match_count = len(players[0].df['match_id'].unique()) if players else 0
         st.write(f"🏐 **{match_count + 1}** matchs analysés")
@@ -100,7 +98,7 @@ with st.sidebar:
         st.warning("Aucune donnée disponible.")
 
 # Menu latéral pour la sélection de l'onglet
-menu_options = ["Réception", "Autre Onglet (À venir)"]  # À étendre avec d'autres onglets
+menu_options = ["Réception", "Block" , "Joueur", "Autre Onglet (À venir)"]  # À étendre avec d'autres onglets
 selected_menu = st.sidebar.radio("Choisir un onglet", menu_options)
 
 # Séparateur visuel
@@ -112,6 +110,18 @@ if selected_menu == "Réception":
         reception_comparison_tab(players)
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")
+elif selected_menu == "Block":
+    if len(players) > 0:
+        block_comparison_tab(players)
+    else:
+        st.warning("Aucune donnée disponible pour l'analyse.")
+
+elif selected_menu == "Joueur":
+    if len(players) > 0:
+        player_evolution_tab(players)
+    else:
+        st.warning("Aucune donnée disponible pour l'analyse.")
+
 else:
     st.subheader("Fonctionnalité à venir")
     st.write("Cette section est en cours de développement.")
