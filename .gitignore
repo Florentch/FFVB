@@ -10,6 +10,7 @@ venv/
 main2.py
 function.py
 team.py
+test.py
 
 # Ton dossier à ignorer
 Autres/

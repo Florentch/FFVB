@@ -4,127 +4,117 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
+import glob
+import os
+
 from player import Player
 from datavolley import read_dv
+from reception import reception_comparison_tab
 
-# Chargement des données
-dv_instance = read_dv.DataVolley('data/CNVB_Spain.dvw')
-df = dv_instance.get_plays()
-players_df = dv_instance.get_players()
+# Configuration de la page dès le début
+st.set_page_config(
+    page_title="Analyse de Volleyball", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Création des objets Player
-players = []
-for _, row in players_df.iterrows():
-    player = Player(
-        id_=row['player_id'],
-        first_name=row['name'],
-        last_name=row['lastname'],
-        number=row['player_number'],
-        team=row['team'],
-        df=df[df['player_id'] == row['player_id']]
-    )
-    players.append(player)
+# Ajout d'un titre et d'une description à l'application
+st.title("📊 Analyse de Volleyball")
+st.markdown("""
+    Application d'analyse des données de volleyball extraites de fichiers DVW de 4 Matchs (uniquement réceptions actuellement).
+    Sélectionnez un onglet dans le menu latéral pour commencer.
+""")
 
-# ------------------------------
-# Onglet Réception
-# ------------------------------
-def reception_comparison_tab(players):
-    st.header("📥 Comparaison des Réceptions")
+# Charger les données
+@st.cache_data  # Cache pour améliorer les performances
+def load_data():
+    """
+    Charge les données de tous les fichiers .dvw disponibles et crée les objets Player.
+    
+    Returns:
+        tuple: (liste des objets Player, DataFrame de tous les joueurs)
+    """
+    # Lire tous les fichiers .dvw
+    file_paths = glob.glob(os.path.join('data', '*.dvw'))
+    
+    if not file_paths:
+        st.error("Aucun fichier .dvw trouvé dans le dossier 'data'.")
+        return [], pd.DataFrame()
+    
+    all_plays = pd.DataFrame()
+    all_players = pd.DataFrame()
 
-    # Sélection du nombre de joueurs
-    nb_joueurs = st.number_input("Nombre de joueurs à comparer", min_value=1, max_value=len(players), value=3, step=1)
+    # Concaténer les données de tous les fichiers
+    for path in file_paths:
+        try:
+            dv = read_dv.DataVolley(path)
+            match_day = dv.__dict__['match_info']['day'][0]  # Récupération de la date du match
 
-    # Liste des noms
-    player_names = [f"{p.first_name} {p.last_name}" for p in players]
+            df_plays = dv.get_plays()
+            df_plays['match_day'] = match_day  # Ajouter la date du match
 
-    # Multiselect pour choisir les joueurs
-    selected_names = st.multiselect("Sélection des joueurs", player_names, default=player_names[:nb_joueurs])
-    selected_players = [p for p in players if f"{p.first_name} {p.last_name}" in selected_names]
+            df_players = dv.get_players()
 
-    # Affichage du DataFrame
-    if selected_players:
-        data = {
-            "Nom": [f"{p.first_name} {p.last_name}" for p in selected_players],
-            "Précision (%)": [p.recep_precision() for p in selected_players],
-            "Parfaites": [p.recep_parfait() for p in selected_players],
-            "Bonnes": [p.recep_good() for p in selected_players],
-            "Mauvaises": [p.recep_bad() for p in selected_players],
-            "Fails": [p.recep_fail() for p in selected_players],
-            "Total": [p.recep_total() for p in selected_players],
-        }
-        df_comparaison = pd.DataFrame(data)
-        st.dataframe(df_comparaison.set_index("Nom"), use_container_width=True)
-    else:
-        st.info("Sélectionne au moins un joueur pour afficher les données.")
+            all_plays = pd.concat([all_plays, df_plays], ignore_index=True)
+            all_players = pd.concat([all_players, df_players], ignore_index=True)
+        except Exception as e:
+            st.warning(f"Erreur lors du chargement du fichier {os.path.basename(path)}: {e}")
 
-    # Graphique
-    st.subheader("📊 Graphique des Réceptions")
+    # Supprimer les doublons de joueurs
+    players_df = all_players.drop_duplicates(subset=['player_id']).reset_index(drop=True)
 
-    if selected_players:
-        fig = go.Figure()
-        categories = ["Précision (%)", "Parfaites", "Bonnes", "Mauvaises", "Fails", "Total"]
-
-        for player in selected_players:
-            values = [
-                player.recep_precision(),
-                player.recep_parfait(),
-                player.recep_good(),
-                player.recep_bad(),
-                player.recep_fail(),
-                player.recep_total()
-            ]
-
-            fig.add_trace(go.Bar(
-                x=categories,
-                y=values,
-                name=f"{player.first_name} {player.last_name}",
-                text=values,
-                textposition='auto',
-                hovertemplate='%{x} : %{y}<extra>%{fullData.name}</extra>',
-            ))
-
-        fig.update_layout(
-            barmode='group',
-            xaxis_title="Catégories",
-            yaxis_title="Valeurs",
-            legend_title="Joueurs",
-            template="plotly_white",
-            height=500
+    # Créer les objets Player
+    players = []
+    for _, row in players_df.iterrows():
+        player_df = all_plays[all_plays['player_id'] == row['player_id']]
+        player = Player(
+            id_=row['player_id'],
+            first_name=row['name'],
+            last_name=row['lastname'],
+            number=row['player_number'],
+            df=player_df,
+            team=row.get('team')
         )
+        players.append(player)
+    
+    return players, players_df
 
-        st.plotly_chart(fig, use_container_width=True)
+# Charger les données
+with st.spinner("Chargement des données..."):
+    players, players_df = load_data()
+
+# Afficher des statistiques générales dans la barre latérale
+with st.sidebar:
+    st.subheader("Informations générales")
+    if len(players) > 0:
+        st.write(f"📊 **{len(players)}** joueurs au total")
+        
+        # Calculer et afficher les joueurs avec des réceptions
+        reception_players = [p for p in players if len(p.df_reception) > 0]
+        st.write(f"📥 **{len(reception_players)}** joueurs avec des réceptions")
+        
+        # Nombre de matchs
+        match_count = len(players[0].df['match_id'].unique()) if players else 0
+        st.write(f"🏐 **{match_count + 1}** matchs analysés")
     else:
-        st.warning("Aucun joueur sélectionné pour le graphique.")
+        st.warning("Aucune donnée disponible.")
 
-    # CLASSEMENT des joueurs par % de réceptions parfaites
-    st.subheader("🏆 Classement : % Réceptions Parfaites")
+# Menu latéral pour la sélection de l'onglet
+menu_options = ["Réception", "Autre Onglet (À venir)"]  # À étendre avec d'autres onglets
+selected_menu = st.sidebar.radio("Choisir un onglet", menu_options)
 
-    if selected_players:
-        classement_data = []
+# Séparateur visuel
+st.sidebar.markdown("---")
 
-        for p in selected_players:
-            total = p.recep_total()
-            parfait = p.recep_parfait()
-            pourcentage = round((parfait / total) * 100, 1) if total > 0 else 0.0
-            classement_data.append({
-                "Joueur": f"{p.first_name} {p.last_name}",
-                "% Réceptions Parfaites": pourcentage,
-                "Parfaites": parfait,
-                "Total": total
-            })
-
-        df_classement = pd.DataFrame(classement_data)
-        df_classement = df_classement.sort_values(by="% Réceptions Parfaites", ascending=False)
-
-        st.table(df_classement.reset_index(drop=True))
+# En fonction de l'onglet sélectionné, afficher l'onglet correspondant
+if selected_menu == "Réception":
+    if len(players) > 0:
+        reception_comparison_tab(players)
     else:
-        st.info("Aucun joueur sélectionné pour le classement.")
+        st.warning("Aucune donnée disponible pour l'analyse.")
+else:
+    st.subheader("Fonctionnalité à venir")
+    st.write("Cette section est en cours de développement.")
 
-# ------------------------------
-# Lancement de l'app
-# ------------------------------
-tab = st.selectbox("Choisir un onglet", ["Réception"])
-if tab == "Réception":
-    reception_comparison_tab(players)
+
 
