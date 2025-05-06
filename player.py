@@ -2,6 +2,51 @@ import pandas as pd
 import numpy as np
 
 class Player:
+    SKILL_EVAL_MAPPINGS = {
+            "Reception": {
+                '#': 'Parfaite',
+                '+': 'Bonnes',
+                '!': 'Centre possible',
+                '-': 'Centre injouable',
+                '/': 'Nulle',
+                '=': 'Ace reçu'
+            },
+            "Block": {
+                '#': 'Points',
+                '+': 'Bon',
+                '!': 'Soutenu',
+                '-': 'Mauvais',
+                '/': 'Faute de filet',
+                '=': 'Block out'
+            },
+            "Serve": {
+                '#': 'Ace',
+                '/': 'Bon',
+                '+': 'Centre injouable',
+                '!': 'Permet fixe',
+                '-': 'Nul',
+                '=': 'Faute'
+            },
+            "Attack": {
+                '#': 'Gagnante',
+                '+': 'Bonne',
+                '!': 'Soutenu',
+                '-': 'Défendu',
+                '/': 'Contré',
+                '=': 'Faute'
+            },
+            "Dig": {
+                '#': 'Parfaite',
+                '+': 'Bonne',
+                '!': 'Soutien de bloc',
+                '-': 'Mauvaise',
+                '/': 'Renvoi direct',
+                '=': 'Non defendu'
+            },
+            "Set": {
+            }
+        }
+
     def __init__(self, id_, first_name, last_name, number, df, post=None, team=None):
         self.id = id_
         self.first_name = first_name
@@ -10,8 +55,6 @@ class Player:
         self.post = post
         self.team = team
         self.df = df
-        self.df_reception = df[df['skill'] == 'Reception']
-        self.df_block = df[df['skill'] == 'Block']
 
     def get_action_df(self, skill, moment="Tout", match_filter=None):
         df = self.df[self.df['skill'] == skill].copy()
@@ -31,63 +74,56 @@ class Player:
 
         return df
 
-    @staticmethod
-    def _compute_reception_stats(df):
-        total = len(df)
-        evals = {
-            '#': 'Parfaites',
-            '/': 'Bonnes',
-            '+': 'Bonnes',
-            '!': 'Mauvaises',
-            '-': 'Mauvaises',
-            '=': 'Ratées'
-        }
-        stats = {'Total': total}
-        for symbol, label in evals.items():
-            count = len(df[df['evaluation_code'] == symbol])
-            stats[label] = stats.get(label, 0) + count
-
-        for label in ['Parfaites', 'Bonnes', 'Mauvaises', 'Ratées']:
-            stats[f"% {label}"] = round((stats[label] / total) * 100, 1) if total else 0.0
-
-        return stats
-
-    @staticmethod
-    def _compute_block_stats(df):
-        total = len(df)
-        evals = {
-            '#': 'Points',
-            '+': 'Bon',
-            '!': 'Soutenu',
-            '-': 'Mauvais',
-            '/': 'Faute de filet',
-            '=': 'Block out'
-        }
-        stats = {'Total': total}
-        for symbol, label in evals.items():
-            stats[label] = len(df[df['evaluation_code'] == symbol])
-
-        for label in evals.values():
-            stats[f"% {label}"] = round((stats[label] / total) * 100, 1) if total else 0.0
-
-        return stats
-
     def get_skill_stats(self, skill, moment="Tout", match_filter=None):
         df = self.get_action_df(skill, moment, match_filter)
         total = len(df)
 
+        mapping = self.SKILL_EVAL_MAPPINGS.get(skill)
+        if mapping is None:
+            raise ValueError(f"Aucune évaluation définie pour la compétence : {skill}")
+
         if total == 0:
-            sample = self._SKILL_STATS_FUNCTIONS[skill](df)
+            sample = self.compute_skill_stats(df, mapping)
             return {key: 0 for key in sample.keys()}
 
-        return self._SKILL_STATS_FUNCTIONS[skill](df)
+        return self.compute_skill_stats(df, mapping)
 
     def get_skill_percentages(self, skill, moment="Tout", match_filter=None):
         stats = self.get_skill_stats(skill, moment, match_filter)
-        percent_keys = [k for k in stats if k.startswith('%')]
-        return {k: stats[k] for k in percent_keys}
+        return {k: v for k, v in stats.items() if k.startswith('%')}
 
-    _SKILL_STATS_FUNCTIONS = {
-        "Reception": _compute_reception_stats.__func__,
-        "Block": _compute_block_stats.__func__,
-    }
+    @staticmethod
+    def compute_skill_stats(df, eval_mapping):
+        total = len(df)
+        stats = {'Total': total}
+
+        label_counts = {}
+        symbol_counts = df['evaluation_code'].value_counts()
+
+        for symbol, label in eval_mapping.items():
+            count = symbol_counts.get(symbol, 0)
+            label_counts[label] = label_counts.get(label, 0) + count
+
+        stats.update(label_counts)
+
+        for label, count in label_counts.items():
+            stats[f"% {label}"] = round((count / total) * 100, 1) if total else 0.0
+
+        return stats
+
+    @classmethod
+    def get_skill_labels(with_percent=True):
+        labels = {}
+        for skill, symbol_map in Player.SKILL_EVAL_MAPPINGS.items():
+            seen = set()
+            ordered_vals = []
+            for val in symbol_map.values():
+                if val not in seen:
+                    ordered_vals.append(val)
+                    seen.add(val)
+            labels[skill] = [f"% {v}" if with_percent else v for v in ordered_vals]
+        return labels
+
+
+
+   

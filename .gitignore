@@ -11,6 +11,8 @@ main2.py
 function.py
 team.py
 test.py
+reception.py
+block.py
 
 # Ton dossier à ignorer
 Autres/

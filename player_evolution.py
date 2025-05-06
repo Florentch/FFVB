@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+from player import Player
 
 def player_evolution_tab(players):
     st.header("📈 Évolution des Performances")
@@ -12,7 +13,7 @@ def player_evolution_tab(players):
         st.warning("Aucun joueur du CNVB 24-25 avec des données n'a été trouvé.")
         return
 
-    skill = st.radio("Action à analyser", ["Reception", "Block"], horizontal=True)
+    skill = st.radio("Action à analyser", ["Reception", "Block", "Dig", "Serve", "Attack"], horizontal=True)
     moment = st.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
 
     player_names = [f"{p.first_name} {p.last_name}" for p in players_with_data]
@@ -90,8 +91,16 @@ def display_player_evolution(player, moment, skill):
     with st.expander("Voir les données brutes"):
         st.dataframe(stats_df)
 
-    target_label = "% Parfaites" if skill == "Reception" else "% Points"
-    target_default = 40 if skill == "Reception" else 20
+    # Récupère la première catégorie pour le skill donné
+    first_category = list(dict.fromkeys(Player.SKILL_EVAL_MAPPINGS[skill].values()))[0]
+    target_label = f"% {first_category}"
+
+    # Définis des valeurs par défaut personnalisées si besoin
+    default_thresholds = {
+        "Reception": 40,
+        "Block": 20
+    }
+    target_default = default_thresholds.get(skill, 25)  # 25 par défaut si non précisé
     target = st.slider(f"Objectif {target_label}", min_value=0, max_value=100, value=target_default, step=5)
 
     create_evolution_chart(stats_df, target, skill)
@@ -116,10 +125,7 @@ def display_player_evolution(player, moment, skill):
 def create_evolution_chart(stats_df, target, skill):
     fig = go.Figure()
 
-    skill_labels = {
-        "Reception": ["% Parfaites", "% Bonnes", "% Mauvaises", "% Ratées"],
-        "Block": ["% Points", "% Bon", "% Soutenu", "% Mauvais", "% Faute de filet", "% Block out"]
-    }
+    skill_labels = Player.get_skill_labels()
 
     colors = ["green", "blue", "orange", "red", "purple", "gray"]
     for label, color in zip(skill_labels[skill], colors):
