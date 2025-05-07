@@ -14,7 +14,8 @@ def build_global_stats_df(players):
     rows = []
     labels_map = Player.get_skill_labels(with_percent=True)
     for p in players:
-        if p.team != "France Avenir":
+        # MODIFICATION: Vérification plus souple du nom d'équipe pour France Avenir
+        if not (p.team == "France Avenir" or (p.team and "france" in p.team.lower() and "avenir" in p.team.lower())):
             continue
         base = {"Joueur": f"{p.number} – {p.last_name} {p.first_name}"}
         for skill in Player.SKILL_EVAL_MAPPINGS:

@@ -7,7 +7,11 @@ from player import Player
 def player_evolution_tab(players):
     st.header("📈 Évolution des Performances")
 
-    players_with_data = [p for p in players if len(p.df) > 0 and p.team == "France Avenir"]
+    # MODIFICATION: Vérification plus souple du nom d'équipe pour France Avenir
+    players_with_data = [p for p in players if len(p.df) > 0 and (
+        p.team == "France Avenir" or 
+        p.team and "france" in p.team.lower() and "avenir" in p.team.lower()
+    )]
 
     if not players_with_data:
         st.warning("Aucun joueur du CNVB 24-25 avec des données n'a été trouvé.")

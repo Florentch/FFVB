@@ -9,25 +9,19 @@ from datavolley import read_dv
 
 @st.cache_data
 def load_data():
-    # Modification pour gérer correctement les chemins sur Streamlit Cloud
     # Utiliser un chemin absolu basé sur le répertoire de l'application
     app_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(app_dir, 'data')
     file_paths = glob.glob(os.path.join(data_dir, '*.dvw'))
     
-    # Ajouter un log pour déboguer
-    st.write(f"Recherche dans: {data_dir}")
-    st.write(f"Fichiers trouvés: {len(file_paths)}")
-    
     if not file_paths:
-        st.error(f"Aucun fichier .dvw trouvé dans le dossier '{data_dir}'.")
+        st.error(f"Aucun fichier .dvw trouvé dans le dossier 'data'.")
         return [], pd.DataFrame()
 
     all_plays, all_players = pd.DataFrame(), pd.DataFrame()
 
     for path in file_paths:
         try:
-            st.write(f"Traitement du fichier: {os.path.basename(path)}")
             dv = read_dv.DataVolley(path)
             match_day = dv.__dict__['match_info']['day'][0]
 
@@ -52,6 +46,11 @@ def load_data():
         )
         for _, row in players_df.iterrows()
     ]
+
+    # MODIFICATION: Normalisation du nom d'équipe "France Avenir"
+    for p in players:
+        if p.team and "france" in p.team.lower() and "avenir" in p.team.lower():
+            p.team = "France Avenir"
 
     return players, players_df
 
