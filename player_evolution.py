@@ -7,17 +7,23 @@ from player import Player
 def player_evolution_tab(players):
     st.header("📈 Évolution des Performances")
 
-    players_with_data = [p for p in players if len(p.df) > 0 and p.team == "CNVB 24-25"]
+    players_with_data = [p for p in players if len(p.df) > 0 and p.team == "France Avenir"]
 
     if not players_with_data:
         st.warning("Aucun joueur du CNVB 24-25 avec des données n'a été trouvé.")
         return
 
-    skill = st.radio("Action à analyser", ["Reception", "Block", "Dig", "Serve", "Attack"], horizontal=True)
-    moment = st.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
+    # Déplacer les options de sélection dans la sidebar si le mode épinglé est activé
+    fixed_area = st.sidebar if st.session_state.get('pin_selections', True) else st
+    
+    with fixed_area:
+        skill = st.radio("Action à analyser", ["Reception", "Block", "Dig", "Serve", "Attack"], 
+                      horizontal=True, label_visibility="visible")
+        moment = st.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
 
-    player_names = [f"{p.first_name} {p.last_name}" for p in players_with_data]
-    selected_name = st.selectbox("Sélection du joueur CNVB", player_names)
+        player_names = [f"{p.first_name} {p.last_name}" for p in players_with_data]
+        selected_name = st.selectbox("Sélection du joueur CNVB", player_names)
+        
     selected_player = next((p for p in players_with_data if f"{p.first_name} {p.last_name}" == selected_name), None)
 
     if selected_player:
@@ -56,12 +62,16 @@ def display_player_evolution(player, moment, skill):
     match_options = matches_df['match_id'].tolist()
     match_labels = {m_id: f"{row['match_label']} - {row['match_day']}" for m_id, row in zip(matches_df['match_id'], matches_df.to_dict('records'))}
 
-    selected_matches = st.multiselect(
-        "Sélectionner les matchs à analyser",
-        options=match_options,
-        format_func=lambda x: match_labels.get(x, str(x)),
-        default=match_options
-    )
+    # Utiliser la zone fixe définie par le flag pin_selections
+    fixed_area = st.sidebar if st.session_state.get('pin_selections', True) else st
+    
+    with fixed_area:
+        selected_matches = st.multiselect(
+            "Sélectionner les matchs à analyser",
+            options=match_options,
+            format_func=lambda x: match_labels.get(x, str(x)),
+            default=match_options
+        )
 
     if not selected_matches:
         st.info("Veuillez sélectionner au moins un match pour voir l'évolution.")
@@ -101,7 +111,9 @@ def display_player_evolution(player, moment, skill):
         "Block": 20
     }
     target_default = default_thresholds.get(skill, 25)  # 25 par défaut si non précisé
-    target = st.slider(f"Objectif {target_label}", min_value=0, max_value=100, value=target_default, step=5)
+    
+    with fixed_area:
+        target = st.slider(f"Objectif {target_label}", min_value=0, max_value=100, value=target_default, step=5)
 
     create_evolution_chart(stats_df, target, skill)
 
@@ -153,7 +165,7 @@ def create_evolution_chart(stats_df, target, skill):
         y=target + 2,
         xref="paper",
         text=f"Objectif: {target}%",
-        showarrow=False,
+        showarrow=False,    
         font=dict(color="rgba(0,100,0,0.8)", size=12)
     )
     for i, row in stats_df.iterrows():

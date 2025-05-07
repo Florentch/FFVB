@@ -5,33 +5,33 @@ class Player:
     SKILL_EVAL_MAPPINGS = {
             "Reception": {
                 '#': 'Parfaite',
-                '+': 'Bonnes',
-                '!': 'Centre possible',
-                '-': 'Centre injouable',
-                '/': 'Nulle',
+                '+': 'Positif',
+                '!': 'Exclamative',
+                '-': 'Négatif',
+                '/': 'Retour direct',
                 '=': 'Ace reçu'
             },
             "Block": {
-                '#': 'Points',
-                '+': 'Bon',
+                '#': 'Kill bloc',
+                '+': 'Positif',
                 '!': 'Soutenu',
-                '-': 'Mauvais',
-                '/': 'Faute de filet',
-                '=': 'Block out'
+                '-': 'Négatif',
+                '/': 'Contré',
+                '=': 'Fautes'
             },
             "Serve": {
                 '#': 'Ace',
                 '/': 'Bon',
-                '+': 'Centre injouable',
-                '!': 'Permet fixe',
-                '-': 'Nul',
+                '+': 'Positif',
+                '!': 'Exclamative',
+                '-': 'Negatif',
                 '=': 'Faute'
             },
             "Attack": {
-                '#': 'Gagnante',
-                '+': 'Bonne',
+                '#': 'Point',
+                '+': 'Positif',
                 '!': 'Soutenu',
-                '-': 'Défendu',
+                '-': 'Négatif',
                 '/': 'Contré',
                 '=': 'Faute'
             },
@@ -56,7 +56,7 @@ class Player:
         self.team = team
         self.df = df
 
-    def get_action_df(self, skill, moment="Tout", match_filter=None):
+    def get_action_df(self, skill, moment="Tout", match_filter=None, set_filter = None):
         df = self.df[self.df['skill'] == skill].copy()
 
         if match_filter:
@@ -72,10 +72,16 @@ class Player:
         elif moment == "Fin":
             df = df[(df['home_team_score'] >= 20) | (df['visiting_team_score'] >= 20)]
 
+        if set_filter is not None:
+            if isinstance(set_filter, (list, tuple, set)):
+                df = df[df['set_number'].isin(set_filter)]
+            else:
+                df = df[df['set_number'] == set_filter]
+
         return df
 
-    def get_skill_stats(self, skill, moment="Tout", match_filter=None):
-        df = self.get_action_df(skill, moment, match_filter)
+    def get_skill_stats(self, skill, moment="Tout", match_filter=None, set_filter = None):
+        df = self.get_action_df(skill, moment, match_filter, set_filter)
         total = len(df)
 
         mapping = self.SKILL_EVAL_MAPPINGS.get(skill)
@@ -88,7 +94,7 @@ class Player:
 
         return self.compute_skill_stats(df, mapping)
 
-    def get_skill_percentages(self, skill, moment="Tout", match_filter=None):
+    def get_skill_percentages(self, skill, moment="Tout", match_filter=None, set_filter = None):
         stats = self.get_skill_stats(skill, moment, match_filter)
         return {k: v for k, v in stats.items() if k.startswith('%')}
 
@@ -112,7 +118,7 @@ class Player:
         return stats
 
     @classmethod
-    def get_skill_labels(with_percent=True):
+    def get_skill_labels(cls, with_percent=True):
         labels = {}
         for skill, symbol_map in Player.SKILL_EVAL_MAPPINGS.items():
             seen = set()

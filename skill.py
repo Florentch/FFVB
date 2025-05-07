@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from collections import defaultdict
+from utils import player_selector  # Nouvelle importation
+
 
 def skill_comparison_tab(players, skill, label="réceptions", categories=None):
     """
@@ -16,17 +18,34 @@ def skill_comparison_tab(players, skill, label="réceptions", categories=None):
     st.header(f"📥 Analyse des {label}")
 
     # Filtrer les joueurs qui ont des données pour cette compétence
-    players_with_data = [p for p in players if len(p.get_action_df(skill)) > 0]
+    players_with_data = [p for p in players if len(p.get_action_df(skill)) > 4]
 
     if not players_with_data:
         st.warning(f"Aucun joueur avec des données de {label} trouvées.")
         return
 
-    # Options d'affichage
-    mode = st.radio("Mode de comparaison", ["Par Joueurs", "Par Équipes"], horizontal=True)
-    moment = st.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
+    # Utilisation des filtres de la session si disponibles
+    moment = st.session_state.get('selected_moment', "Tout")
+    set_filter = st.session_state.get('selected_sets', None)
+    
+    # Options d'affichage en haut
+    # MODIFICATION: Utiliser directement st.sidebar ou st, sans utiliser with
+    fixed_area = st.sidebar if st.session_state.get('pin_selections', True) else st
+    
+    # MODIFICATION: Utiliser la bonne syntaxe pour créer des éléments dans la sidebar ou la zone principale
+    if not st.session_state.get('pin_selections', True):
+        # Si on est dans la zone principale, utilisez des colonnes pour l'affichage
+        col1, col2 = st.columns(2)
+        with col1:
+            mode = st.radio("Mode de comparaison", ["Par Joueurs", "Par Équipes"], horizontal=True, label_visibility="visible")
+        with col2:
+            if 'selected_moment' not in st.session_state:
+                st.session_state.selected_moment = moment
+    else:
+        # Si on est dans la sidebar, affichage vertical
+        mode = st.sidebar.radio("Mode de comparaison", ["Par Joueurs", "Par Équipes"], horizontal=True, label_visibility="visible")
 
-    # Récupération des données de match
+    # Récupération des données de match avec date
     match_data, match_ids_set = [], set()
     for p in players_with_data:
         for match_id in p.df['match_id'].dropna().unique():
@@ -36,30 +55,102 @@ def skill_comparison_tab(players, skill, label="réceptions", categories=None):
             match_rows = p.df[p.df['match_id'] == match_id]
             if len(match_rows) > 0:
                 row = match_rows.iloc[0]
+                match_day = row.get('match_day', '')
                 match_data.append({
                     'match_id': match_id,
-                    'match_label': f"{row.get('home_team', 'Équipe A')} vs {row.get('visiting_team', 'Équipe B')} - {row.get('match_day', '')}"
+                    'match_day': match_day,
+                    'match_label': f"{row.get('home_team', 'Équipe A')} vs {row.get('visiting_team', 'Équipe B')} - {match_day}"
                 })
 
+    # Trier les matchs par date si possible
     match_df = pd.DataFrame(match_data)
+    if not match_df.empty and 'match_day' in match_df.columns:
+        try:
+            # Convertir les dates au format DD/MM/YYYY en datetime pour le tri
+            match_df['date_for_sort'] = pd.to_datetime(match_df['match_day'], format='%d/%m/%Y', errors='coerce')
+            match_df = match_df.sort_values(by='date_for_sort', ascending=False)
+        except Exception as e:
+            print(f"Erreur de tri des dates: {e}")  # Pour le débogage
+            pass  # Si le tri échoue, on garde l'ordre d'origine
+    
     match_ids = list(match_df['match_id'].unique())
     match_labels = match_df.set_index('match_id')['match_label'].to_dict()
 
-    # Sélection des matchs à analyser
-    selected_matches = st.multiselect(
-        "Filtrer par match", 
-        options=match_ids,
-        format_func=lambda x: match_labels.get(x, str(x)),
-        default=match_ids
-    )
+    # Sélection des matchs avec options rapides - maintenant dans la zone épinglable
+    # MODIFICATION: Ne pas utiliser with fixed_area, mais choisir la zone directement
+    if st.session_state.get('pin_selections', True):
+        # Initialiser la variable de session si elle n'existe pas
+        if 'selected_matches' not in st.session_state:
+            st.session_state.selected_matches = match_ids
+        
+        # Utiliser des colonnes dans la sidebar également pour plus de compacité
+        col1, col2 = st.sidebar.columns([3, 1])
+        
+        with col2:
+            st.write("Options rapides")
+            if st.button("Tous", key="btn_all_matches"):
+                st.session_state.selected_matches = match_ids
+            if st.button("Aucun", key="btn_no_match"):
+                st.session_state.selected_matches = []
+        
+        with col1:
+            selected_matches = st.multiselect(
+                "Filtrer par match", 
+                options=match_ids,
+                format_func=lambda x: match_labels.get(x, str(x)),
+                default=st.session_state.selected_matches
+            )
+            # Mettre à jour la session
+            st.session_state.selected_matches = selected_matches
 
+        # Zone pour la sélection des joueurs
+        if mode == "Par Joueurs":
+            # Utiliser player_selector - celui-ci sera modifié pour utiliser la zone fixe
+            df = player_selector(players_with_data, skill, moment, selected_matches, set_filter)
+            if df is None or df.empty:
+                # Déjà affiché dans player_selector, pas besoin de répéter l'avertissement
+                return
+    else:
+        # Initialiser la variable de session si elle n'existe pas
+        if 'selected_matches' not in st.session_state:
+            st.session_state.selected_matches = match_ids
+        
+        # Utiliser des colonnes dans la zone principale 
+        col1, col2 = st.columns([3, 1])
+        
+        with col2:
+            st.write("Options rapides")
+            if st.button("Tous", key="btn_all_matches"):
+                st.session_state.selected_matches = match_ids
+            if st.button("Aucun", key="btn_no_match"):
+                st.session_state.selected_matches = []
+        
+        with col1:
+            selected_matches = st.multiselect(
+                "Filtrer par match", 
+                options=match_ids,
+                format_func=lambda x: match_labels.get(x, str(x)),
+                default=st.session_state.selected_matches
+            )
+            # Mettre à jour la session
+            st.session_state.selected_matches = selected_matches
+
+        # Zone pour la sélection des joueurs
+        if mode == "Par Joueurs":
+            # Utiliser player_selector - celui-ci sera modifié pour utiliser la zone fixe
+            df = player_selector(players_with_data, skill, moment, selected_matches, set_filter)
+            if df is None or df.empty:
+                # Déjà affiché dans player_selector, pas besoin de répéter l'avertissement
+                return
+    
     # Affichage selon le mode sélectionné
     if mode == "Par Joueurs":
-        display_player_stats(players_with_data, selected_matches, moment, skill, label, categories)
+        display_player_stats(players_with_data, selected_matches, moment, set_filter, skill, label, categories, df)
     else:
-        display_team_stats(players_with_data, selected_matches, moment, skill, label, categories)
+        display_team_stats(players_with_data, selected_matches, moment, set_filter, skill, label, categories)
 
-def display_player_stats(players, selected_matches, moment, skill, label, categories):
+
+def display_player_stats(players, selected_matches, moment, set_filter, skill, label, categories, df=None):
     """
     Affiche les statistiques par joueur
     
@@ -70,48 +161,37 @@ def display_player_stats(players, selected_matches, moment, skill, label, catego
         skill (str): Type de compétence
         label (str): Libellé pour l'affichage
         categories (list): Liste des catégories d'évaluation
+        df (DataFrame, optional): DataFrame déjà préparé par player_selector
     """
-    # Sélection des joueurs
-    names = [f"{p.first_name} {p.last_name}" for p in players]
-    selected_names = st.multiselect(
-        "Sélection des joueurs", 
-        names, 
-        default=names[:min(3, len(names))]
-    )
-    selected_players = [p for p in players if f"{p.first_name} {p.last_name}" in selected_names]
-
-    if not selected_players or not selected_matches:
-        st.info("Sélectionnez des joueurs et au moins un match pour afficher les données.")
+    if not selected_matches:
+        st.warning("⚠️ Veuillez sélectionner au moins un match pour afficher les statistiques.")
         return
-
-    # Récupération des statistiques par joueur
-    data = []
-    for p in selected_players:
-        stats = p.get_skill_stats(skill, moment, match_filter=selected_matches)
-        if stats["Total"] > 0:
-            row = {"Nom": f"{p.first_name} {p.last_name}"}
-            row.update(stats)
-            data.append(row)
-
-    if not data:
+        
+    # Si df n'est pas fourni, utiliser player_selector
+    if df is None:
+        df = player_selector(players, skill, moment, selected_matches, set_filter)
+    
+    if df is None:
+        st.warning("⚠️ Veuillez sélectionner au moins un joueur pour afficher les statistiques.")
+        return
+    
+    if df.empty:
         st.info(f"Aucune donnée de {label} pour les joueurs et matchs sélectionnés.")
         return
-
+    
     # Affichage du tableau de données
-    df = pd.DataFrame(data).set_index("Nom")
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df.set_index("Nom"), use_container_width=True)
 
     # Création du graphique à barres
     fig = go.Figure()
-    for p in selected_players:
-        stats = p.get_skill_stats(skill, moment, match_filter=selected_matches)
-        if stats["Total"] > 0:
-            fig.add_trace(go.Bar(
-                x=categories + ["Total"],
-                y=[stats.get(cat, 0) for cat in categories] + [stats["Total"]],
-                name=f"{p.first_name} {p.last_name}",
-                textposition='auto'
-            ))
+    for _, row in df.iterrows():
+        player_name = row["Nom"]
+        fig.add_trace(go.Bar(
+            x=categories + ["Total"],
+            y=[row.get(cat, 0) for cat in categories] + [row["Total"]],
+            name=player_name,
+            textposition='auto'
+        ))
 
     fig.update_layout(
         barmode='group', 
@@ -126,19 +206,21 @@ def display_player_stats(players, selected_matches, moment, skill, label, catego
     # Déterminer la métrique de classement automatiquement (première catégorie en %)
     main_metric = f"% {categories[0]}" if categories else None
 
+    data = df.to_dict('records')
+    
     if main_metric and all(main_metric in d for d in data):
         classement = sorted(data, key=lambda x: -x.get(main_metric, 0))
         st.subheader(f"🏆 Classement : {main_metric}")
-        columns_to_show = ["Nom", main_metric, categories[0], "Total"]
+        columns_to_show = ["Nom", "Équipe", main_metric, categories[0], "Total"]
     else:
         classement = data
         st.subheader("🏆 Classement indisponible")
-        columns_to_show = ["Nom", "Total"]
+        columns_to_show = ["Nom", "Équipe", "Total"]
 
     st.table(pd.DataFrame(classement)[columns_to_show])
 
 
-def display_team_stats(players, selected_matches, moment, skill, label, categories):
+def display_team_stats(players, selected_matches, moment, set_filter, skill, label, categories):
     """
     Affiche les statistiques par équipe
     
@@ -153,7 +235,7 @@ def display_team_stats(players, selected_matches, moment, skill, label, categori
     st.subheader("📊 Statistiques moyennes par équipe")
 
     if not selected_matches:
-        st.info("Sélectionnez au moins un match pour afficher les données.")
+        st.warning("⚠️ Veuillez sélectionner au moins un match pour afficher les statistiques.")
         return
 
     # Aggrégation des statistiques par équipe
@@ -162,7 +244,7 @@ def display_team_stats(players, selected_matches, moment, skill, label, categori
     for p in players:
         if not p.team:
             continue
-        stats = p.get_skill_stats(skill, moment, match_filter=selected_matches)
+        stats = p.get_skill_stats(skill, moment, match_filter=selected_matches, set_filter = set_filter)
         if stats["Total"] > 0:
             for k in categories + ["Total"]:
                 equipe_stats[p.team][k] += stats.get(k, 0)

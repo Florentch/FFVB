@@ -2,14 +2,11 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import streamlit as st
-import pandas as pd
-import glob
-import os
-
-from player import Player
-from datavolley import read_dv
+from utils import load_data, SKILL_TABS, unique_preserve_order
 from skill import skill_comparison_tab
 from player_evolution import player_evolution_tab
+from player import Player
+from stat_global import global_stats_tab
 
 # Configuration de la page
 st.set_page_config(
@@ -17,51 +14,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        min-width: 0%;
+        max-width: 25%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 st.title("📊 Analyse de Volleyball")
 st.markdown("""
-    Application d'analyse des données de volleyball extraites de fichiers DVW de 4 Matchs.
-    Sélectionnez un onglet dans le menu latéral pour commencer.
-""")
-
-@st.cache_data
-def load_data():
-    file_paths = glob.glob(os.path.join('data', '*.dvw'))
-
-    if not file_paths:
-        st.error("Aucun fichier .dvw trouvé dans le dossier 'data'.")
-        return [], pd.DataFrame()
-
-    all_plays, all_players = pd.DataFrame(), pd.DataFrame()
-
-    for path in file_paths:
-        try:
-            dv = read_dv.DataVolley(path)
-            match_day = dv.__dict__['match_info']['day'][0]
-
-            df_plays = dv.get_plays()
-            df_plays['match_day'] = match_day
-
-            all_plays = pd.concat([all_plays, df_plays], ignore_index=True)
-            all_players = pd.concat([all_players, dv.get_players()], ignore_index=True)
-        except Exception as e:
-            st.warning(f"Erreur lors du chargement du fichier {os.path.basename(path)}: {e}")
-
-    players_df = all_players.drop_duplicates(subset=['player_id']).reset_index(drop=True)
-
-    players = [
-        Player(
-            id_=row['player_id'],
-            first_name=row['name'],
-            last_name=row['lastname'],
-            number=row['player_number'],
-            df=all_plays[all_plays['player_id'] == row['player_id']],
-            team=row.get('team')
-        )
-        for _, row in players_df.iterrows()
-    ]
-
-    return players, players_df
+    Application d'analyse des données de volleyball extraites des fichiers dvw de la saison 24-25 de l'équipe France Avenir """)
 
 with st.spinner("Chargement des données..."):
     players, players_df = load_data()
@@ -76,23 +40,61 @@ with st.sidebar:
     else:
         st.warning("Aucune donnée disponible.")
 
-# Menu latéral
-menu_options = ["Réception", "Block", "Service", "Défense", "Attaque", "Joueur", "Autre Onglet (À venir)"]
-selected_menu = st.sidebar.radio("Choisir un onglet", menu_options)
-st.sidebar.markdown("---")
 
-def unique_preserve_order(seq):
-    seen = set()
-    return [x for x in seq if not (x in seen or seen.add(x))]
+# Menu latéral avec catégories
+with st.sidebar:
+    st.markdown("---")
+    st.subheader("Navigation")
+    
+    # Variable pour stocker la sélection active
+    if 'active_section' not in st.session_state:
+        st.session_state.active_section = "Actions"
+        st.session_state.active_item = list(SKILL_TABS.keys())[0] if SKILL_TABS else None
+    
+    # Catégorie Actions (Skills)
+    if st.sidebar.button("📈 Actions", key="btn_actions", 
+                        use_container_width=True, 
+                        type="primary" if st.session_state.active_section == "Actions" else "secondary"):
+        st.session_state.active_section = "Actions"
+        st.session_state.active_item = list(SKILL_TABS.keys())[0] if SKILL_TABS else None
+    
+    if st.session_state.active_section == "Actions":
+        skill_options = list(SKILL_TABS.keys())
+        selected_skill = st.radio("Sélection d'action", skill_options, key="skill_radio", label_visibility="collapsed")
+        st.session_state.active_item = selected_skill
+    
+    # Catégorie Statistiques Joueur
+    if st.sidebar.button("👤 Stats Joueur", key="btn_player", 
+                        use_container_width=True,
+                        type="primary" if st.session_state.active_section == "Stats Joueur" else "secondary"):
+        st.session_state.active_section = "Stats Joueur"
+        st.session_state.active_item = "Joueur"
+    
+    # Catégorie Statistiques Globales
+    if st.sidebar.button("🌐 Stats Globales", key="btn_global", 
+                        use_container_width=True,
+                        type="primary" if st.session_state.active_section == "Stats Globales" else "secondary"):
+        st.session_state.active_section = "Stats Globales"
+        st.session_state.active_item = "Statistique globale"
+        
+    # Zone pour les filtres généraux qui restent fixes
+    if 'active_section' in st.session_state and st.session_state.active_section == "Actions":
+        st.markdown("---")
+        st.subheader("Filtres")
+        with st.container():
+            # Ce container sera fixe lors du défilement
+            st.session_state.selected_moment = st.selectbox("Moment du set", ["Tout", "Début", "Milieu", "Fin"], key="moment_filter")
+            
+            # Récupérer les sets disponibles
+            if players:
+                available_sets = sorted(set.union(*(set(p.df['set_number'].dropna().unique()) for p in players if p.df is not None)))
+                st.session_state.selected_sets = st.multiselect("Sets", options=available_sets, default=available_sets, key="sets_filter")
+            
+            # Option pour épingler les sélections de joueurs et de matchs
+            st.checkbox("Épingler les sélections", value=True, help="Garde les sélections de joueurs et de matchs visibles lors du défilement", key="pin_selections")
 
-# Config des tabs "skill"
-SKILL_TABS = {
-    "Réception": {"skill": "Reception", "label": "réceptions"},
-    "Block": {"skill": "Block", "label": "blocks"},
-    "Service": {"skill": "Serve", "label": "service"},
-    "Défense": {"skill": "Dig", "label": "défense"},
-    "Attaque": {"skill": "Attack", "label": "attaque"},
-}
+# Définir le menu sélectionné en fonction de la sélection active
+selected_menu = st.session_state.active_item
 
 # Affichage selon l'onglet sélectionné
 if selected_menu in SKILL_TABS:
@@ -112,6 +114,5 @@ elif selected_menu == "Joueur":
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")
 
-else:
-    st.subheader("Fonctionnalité à venir")
-    st.write("Cette section est en cours de développement.")
+elif selected_menu == "Statistique globale":
+    global_stats_tab(players)
