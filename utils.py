@@ -2,22 +2,32 @@ import os
 import glob
 import pandas as pd
 import streamlit as st
+import re
 
 from player import Player
 from datavolley import read_dv
 
 @st.cache_data
 def load_data():
-    file_paths = glob.glob(os.path.join('data', '*.dvw'))
-
+    # Modification pour gérer correctement les chemins sur Streamlit Cloud
+    # Utiliser un chemin absolu basé sur le répertoire de l'application
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(app_dir, 'data')
+    file_paths = glob.glob(os.path.join(data_dir, '*.dvw'))
+    
+    # Ajouter un log pour déboguer
+    st.write(f"Recherche dans: {data_dir}")
+    st.write(f"Fichiers trouvés: {len(file_paths)}")
+    
     if not file_paths:
-        st.error("Aucun fichier .dvw trouvé dans le dossier 'data'.")
+        st.error(f"Aucun fichier .dvw trouvé dans le dossier '{data_dir}'.")
         return [], pd.DataFrame()
 
     all_plays, all_players = pd.DataFrame(), pd.DataFrame()
 
     for path in file_paths:
         try:
+            st.write(f"Traitement du fichier: {os.path.basename(path)}")
             dv = read_dv.DataVolley(path)
             match_day = dv.__dict__['match_info']['day'][0]
 
@@ -38,7 +48,7 @@ def load_data():
             last_name=row['lastname'],
             number=row['player_number'],
             df=all_plays[all_plays['player_id'] == row['player_id']],
-            team=row.get('team')
+            team = re.sub(r'\d+', '', row.get('team', '')).lower().title()
         )
         for _, row in players_df.iterrows()
     ]

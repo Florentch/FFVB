@@ -2,6 +2,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import streamlit as st
+import os
 from utils import load_data, SKILL_TABS, unique_preserve_order
 from skill import skill_comparison_tab
 from player_evolution import player_evolution_tab
@@ -26,6 +27,14 @@ st.markdown("""
 st.title("📊 Analyse de Volleyball")
 st.markdown("""
     Application d'analyse des données de volleyball extraites des fichiers dvw de la saison 24-25 de l'équipe France Avenir """)
+
+# Afficher le répertoire courant pour le débogage
+st.write(f"Répertoire de travail actuel: {os.getcwd()}")
+st.write(f"Contenu du répertoire: {os.listdir()}")
+if os.path.exists('data'):
+    st.write(f"Contenu du dossier data: {os.listdir('data')}")
+else:
+    st.warning("Le dossier 'data' n'existe pas!")
 
 with st.spinner("Chargement des données..."):
     players, players_df = load_data()

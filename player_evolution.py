@@ -14,9 +14,16 @@ def player_evolution_tab(players):
         return
 
     # Déplacer les options de sélection dans la sidebar si le mode épinglé est activé
-    fixed_area = st.sidebar if st.session_state.get('pin_selections', True) else st
-    
-    with fixed_area:
+    if st.session_state.get('pin_selections', True):
+        # Mode épinglé: utiliser la sidebar
+        skill = st.sidebar.radio("Action à analyser", ["Reception", "Block", "Dig", "Serve", "Attack"], 
+                      horizontal=True, label_visibility="visible")
+        moment = st.sidebar.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
+
+        player_names = [f"{p.first_name} {p.last_name}" for p in players_with_data]
+        selected_name = st.sidebar.selectbox("Sélection du joueur CNVB", player_names)
+    else:
+        # Mode non-épinglé: utiliser la zone principale
         skill = st.radio("Action à analyser", ["Reception", "Block", "Dig", "Serve", "Attack"], 
                       horizontal=True, label_visibility="visible")
         moment = st.selectbox("Choisir le moment dans le set", ["Tout", "Début", "Milieu", "Fin"])
@@ -62,10 +69,17 @@ def display_player_evolution(player, moment, skill):
     match_options = matches_df['match_id'].tolist()
     match_labels = {m_id: f"{row['match_label']} - {row['match_day']}" for m_id, row in zip(matches_df['match_id'], matches_df.to_dict('records'))}
 
-    # Utiliser la zone fixe définie par le flag pin_selections
-    fixed_area = st.sidebar if st.session_state.get('pin_selections', True) else st
-    
-    with fixed_area:
+    # Utiliser la zone appropriée selon le mode d'épinglage
+    if st.session_state.get('pin_selections', True):
+        # Mode épinglé : utiliser la sidebar
+        selected_matches = st.sidebar.multiselect(
+            "Sélectionner les matchs à analyser",
+            options=match_options,
+            format_func=lambda x: match_labels.get(x, str(x)),
+            default=match_options
+        )
+    else:
+        # Mode non-épinglé : utiliser la zone principale
         selected_matches = st.multiselect(
             "Sélectionner les matchs à analyser",
             options=match_options,
@@ -112,7 +126,10 @@ def display_player_evolution(player, moment, skill):
     }
     target_default = default_thresholds.get(skill, 25)  # 25 par défaut si non précisé
     
-    with fixed_area:
+    # Utiliser la zone appropriée selon le mode d'épinglage
+    if st.session_state.get('pin_selections', True):
+        target = st.sidebar.slider(f"Objectif {target_label}", min_value=0, max_value=100, value=target_default, step=5)
+    else:
         target = st.slider(f"Objectif {target_label}", min_value=0, max_value=100, value=target_default, step=5)
 
     create_evolution_chart(stats_df, target, skill)
