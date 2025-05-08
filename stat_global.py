@@ -2,14 +2,23 @@ import pandas as pd
 import streamlit as st
 from player import Player
 import numpy as np
-
-MIN_ACTIONS = 5
+from config import MIN_ACTIONS, SKILL_EVAL_MAPPINGS
 
 
 def build_global_stats_df(players):
     """
-    Retourne un DataFrame indexé par joueur (numéro - nom prénom). Pour chaque skill,
-    affiche le nombre d'actions (Total), la première et la dernière évaluation en pourcentage.
+    Construit un DataFrame contenant les statistiques globales des joueurs de France Avenir.
+    
+    Pour chaque joueur et chaque compétence, affiche:
+    - Le nombre total d'actions
+    - Le pourcentage de la première évaluation (généralement positive)
+    - Le pourcentage de la dernière évaluation (généralement négative)
+    
+    Args:
+        players (list): Liste des objets Player
+    
+    Returns:
+        DataFrame: Statistiques indexées par joueur
     """
     rows = []
     labels_map = Player.get_skill_labels(with_percent=True)
@@ -18,7 +27,7 @@ def build_global_stats_df(players):
         if not (p.team == "France Avenir" or (p.team and "france" in p.team.lower() and "avenir" in p.team.lower())):
             continue
         base = {"Joueur": f"{p.number} – {p.last_name} {p.first_name}"}
-        for skill in Player.SKILL_EVAL_MAPPINGS:
+        for skill in SKILL_EVAL_MAPPINGS:
             stats = p.get_skill_stats(skill)
             total = stats.get("Total", 0)
             skill_labels = labels_map.get(skill, [])
@@ -39,9 +48,17 @@ def build_global_stats_df(players):
 
 def style_global_df(df):
     """
-    Applique un style: pour chaque colonne, surligne en vert le max et en rouge le min,
-    sauf pour la dernière évaluation de chaque skill où c'est inversé. Les colonnes _n
-    (nombre d'actions) ne sont pas stylées.
+    Applique un style au DataFrame des statistiques globales.
+    
+    Pour chaque colonne de pourcentage:
+    - Surligne en vert la valeur maximale (ou minimale pour les évaluations négatives)
+    - Surligne en rouge la valeur minimale (ou maximale pour les évaluations négatives)
+    
+    Args:
+        df (DataFrame): DataFrame des statistiques à styliser
+        
+    Returns:
+        Styler: DataFrame stylisé
     """
     labels_map = Player.get_skill_labels(with_percent=True)
 

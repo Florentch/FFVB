@@ -1,51 +1,14 @@
 import pandas as pd
 import numpy as np
+from config import SKILL_EVAL_MAPPINGS
 
 class Player:
-    SKILL_EVAL_MAPPINGS = {
-            "Reception": {
-                '#': 'Parfaite',
-                '+': 'Positif',
-                '!': 'Exclamative',
-                '-': 'Négatif',
-                '/': 'Retour direct',
-                '=': 'Ace reçu'
-            },
-            "Block": {
-                '#': 'Kill bloc',
-                '+': 'Positif',
-                '!': 'Soutenu',
-                '-': 'Négatif',
-                '/': 'Contré',
-                '=': 'Fautes'
-            },
-            "Serve": {
-                '#': 'Ace',
-                '/': 'Bon',
-                '+': 'Positif',
-                '!': 'Exclamative',
-                '-': 'Negatif',
-                '=': 'Faute'
-            },
-            "Attack": {
-                '#': 'Point',
-                '+': 'Positif',
-                '!': 'Soutenu',
-                '-': 'Négatif',
-                '/': 'Contré',
-                '=': 'Faute'
-            },
-            "Dig": {
-                '#': 'Parfaite',
-                '+': 'Bonne',
-                '!': 'Soutien de bloc',
-                '-': 'Mauvaise',
-                '/': 'Renvoi direct',
-                '=': 'Non defendu'
-            },
-            "Set": {
-            }
-        }
+    """
+    Représente un joueur de volleyball avec ses informations et statistiques.
+    
+    Cette classe centralise toutes les opérations liées aux données d'un joueur,
+    y compris le filtrage des actions et le calcul des statistiques.
+    """
 
     def __init__(self, id_, first_name, last_name, number, df, post=None, team=None):
         self.id = id_
@@ -56,7 +19,19 @@ class Player:
         self.team = team
         self.df = df
 
-    def get_action_df(self, skill, moment="Tout", match_filter=None, set_filter = None):
+    def get_action_df(self, skill, set_moment="Tout", match_filter=None, set_filter = None):
+        """
+        Filtre les actions du joueur selon plusieurs critères.
+        
+        Args:
+            skill (str): Type d'action à filtrer (Reception, Block, etc.)
+            set_moment (str): Moment du set à analyser (Tout, Début, Milieu, Fin)
+            match_filter (list/str): ID(s) des matchs à inclure
+            set_filter (list/int): Numéro(s) des sets à inclure
+            
+        Returns:
+            DataFrame: Les actions filtrées du joueur
+        """
         df = self.df[self.df['skill'] == skill].copy()
 
         if match_filter:
@@ -64,12 +39,12 @@ class Player:
                 match_filter = [match_filter]
             df = df[df['match_id'].isin(match_filter)]
 
-        if moment == "Début":
+        if set_moment == "Début":
             df = df[(df['home_team_score'] <= 10) & (df['visiting_team_score'] <= 10)]
-        elif moment == "Milieu":
+        elif set_moment == "Milieu":
             df = df[((df['home_team_score'] > 10) & (df['home_team_score'] < 20)) &
                     ((df['visiting_team_score'] > 10) & (df['visiting_team_score'] < 20))]
-        elif moment == "Fin":
+        elif set_moment == "Fin":
             df = df[(df['home_team_score'] >= 20) | (df['visiting_team_score'] >= 20)]
 
         if set_filter is not None:
@@ -80,11 +55,11 @@ class Player:
 
         return df
 
-    def get_skill_stats(self, skill, moment="Tout", match_filter=None, set_filter = None):
-        df = self.get_action_df(skill, moment, match_filter, set_filter)
+    def get_skill_stats(self, skill, set_moment="Tout", match_filter=None, set_filter = None):
+        df = self.get_action_df(skill, set_moment, match_filter, set_filter)
         total = len(df)
 
-        mapping = self.SKILL_EVAL_MAPPINGS.get(skill)
+        mapping = SKILL_EVAL_MAPPINGS.get(skill)
         if mapping is None:
             raise ValueError(f"Aucune évaluation définie pour la compétence : {skill}")
 
@@ -94,8 +69,8 @@ class Player:
 
         return self.compute_skill_stats(df, mapping)
 
-    def get_skill_percentages(self, skill, moment="Tout", match_filter=None, set_filter = None):
-        stats = self.get_skill_stats(skill, moment, match_filter)
+    def get_skill_percentages(self, skill, set_moment="Tout", match_filter=None, set_filter = None):
+        stats = self.get_skill_stats(skill, set_moment, match_filter)
         return {k: v for k, v in stats.items() if k.startswith('%')}
 
     @staticmethod
@@ -120,7 +95,7 @@ class Player:
     @classmethod
     def get_skill_labels(cls, with_percent=True):
         labels = {}
-        for skill, symbol_map in Player.SKILL_EVAL_MAPPINGS.items():
+        for skill, symbol_map in SKILL_EVAL_MAPPINGS.items():
             seen = set()
             ordered_vals = []
             for val in symbol_map.values():

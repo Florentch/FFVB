@@ -2,15 +2,16 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import streamlit as st
-from utils import load_data, SKILL_TABS, unique_preserve_order
+from utils import load_data, unique_preserve_order
 from skill import skill_comparison_tab
 from player_evolution import player_evolution_tab
 from player import Player
 from stat_global import global_stats_tab
+from config import SKILL_EVAL_MAPPINGS, SKILL_TABS, SET_MOMENTS
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Analyse de Volleyball", 
+    page_title="Analyse CNVB Saison 2024-2025", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -24,8 +25,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("📊 Analyse de Volleyball")
-st.markdown("""
-    Application d'analyse des données de volleyball extraites des fichiers dvw de la saison 24-25 de l'équipe France Avenir """)
 
 with st.spinner("Chargement des données..."):
     players, players_df = load_data()
@@ -83,7 +82,7 @@ with st.sidebar:
         st.subheader("Filtres")
         with st.container():
             # Ce container sera fixe lors du défilement
-            st.session_state.selected_moment = st.selectbox("Moment du set", ["Tout", "Début", "Milieu", "Fin"], key="moment_filter")
+            st.session_state.selected_moment = st.selectbox("Moment du set", SET_MOMENTS, key="moment_filter")
             
             # Récupérer les sets disponibles
             if players:
@@ -103,7 +102,7 @@ if selected_menu in SKILL_TABS:
     label = config["label"]
 
     if players:
-        categories = unique_preserve_order(Player.SKILL_EVAL_MAPPINGS.get(skill, {}).values())
+        categories = unique_preserve_order(SKILL_EVAL_MAPPINGS.get(skill, {}).values())
         skill_comparison_tab(players, skill=skill, label=label, categories=categories)
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")
