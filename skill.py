@@ -150,8 +150,16 @@ def display_team_stats(df, skill, label, categories):
     """
     st.subheader("📊 Statistiques moyennes par équipe")
 
+    # Prétraitement du DataFrame pour supprimer les préfixes % en double
+    display_df = df.copy()
+    # Correction des colonnes avec % en double
+    for col in display_df.columns:
+        if col.startswith('% % '):
+            new_col = col.replace('% % ', '% ')
+            display_df.rename(columns={col: new_col}, inplace=True)
+
     # Affichage du tableau
-    st.dataframe(df.set_index("Équipe"), use_container_width=True)
+    st.dataframe(display_df.set_index("Équipe"), use_container_width=True)
 
     # Affichage des graphiques en camembert
     display_team_pie_charts(df, categories, label)

@@ -11,9 +11,21 @@ def create_bar_chart(df, categories, name_col="Nom", height=500):
     fig = go.Figure()
     for _, row in df.iterrows():
         entity_name = row[name_col]
+        # Détection intelligente des colonnes avec et sans préfixe %
+        values = []
+        for cat in categories:
+            # Vérifier d'abord si la colonne existe avec le préfixe %
+            if f"% {cat}" in row:
+                values.append(row[f"% {cat}"])
+            # Sinon, vérifier si la catégorie elle-même existe (déjà avec %)
+            elif cat in row:
+                values.append(row[cat])
+            else:
+                values.append(0)  # Valeur par défaut
+        
         fig.add_trace(go.Bar(
             x=categories,
-            y=[row.get(f"% {cat}", 0) for cat in categories],
+            y=values,
             name=entity_name,
             textposition='auto'
         ))

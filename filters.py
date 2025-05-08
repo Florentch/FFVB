@@ -183,9 +183,12 @@ def team_selector(players, skill, moment, selected_matches, set_filter=None):
     for team, stats in team_stats.items():
         if stats["Total"] > 0:
             row = {"Équipe": team, "Nbre Total": stats["Total"]}
-            for category in stats:
+            # Correction pour éviter les % en double
+            for category, value in stats.items():
                 if category != "Total":
-                    row[f"% {category}"] = round(stats[category] / stats["Total"] * 100, 1)
+                    # Vérifier si la catégorie commence déjà par %
+                    key = category if category.startswith("% ") else f"% {category}"
+                    row[key] = round(value / stats["Total"] * 100, 1)
             data.append(row)
     
     if not data:

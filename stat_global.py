@@ -36,11 +36,11 @@ def build_global_stats_df(players):
         for skill in SKILL_EVAL_MAPPINGS:
             skill_stats = player.get_skill_stats(skill)
             total = skill_stats.get("Total", 0)
-            skill_labels = labels_map.get(skill, [])
+            skill_labels = labels_map.get(skill, []) 
             if not skill_labels:
                 continue
             first_label = skill_labels[0]    # ex. "% Parfaite"
-            last_label = skill_labels[-1]    # ex. "% Fautes"
+            last_label = skill_labels[-2]    # ex. "% Fautes"
             col_total = f"n {skill}"
             col_first = f"{skill}_{first_label}"
             col_last = f"{skill}_{last_label}"
@@ -92,7 +92,7 @@ def style_global_df(df, team_rows=2):
         
         # Déterminer si c'est une colonne d'évaluation négative (dernière)
         skill, label = name.split('_', 1) if '_' in name else (None, name)
-        is_last = skill in labels_map and label == labels_map[skill][-1]
+        is_last = skill in labels_map and label == labels_map[skill][-2]
         
         # Surligner toujours les lignes d'équipe en jaune
         result = ['background-color: lightyellow'] * team_rows

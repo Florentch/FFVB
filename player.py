@@ -34,13 +34,15 @@ class Player:
                 match_filter = [match_filter]
             df = df[df['match_id'].isin(match_filter)]
 
-        if set_moment == SET_MOMENTS[0]:
-            df = df[(df['home_team_score'] <= 10) & (df['visiting_team_score'] <= 10)]
-        elif set_moment == SET_MOMENTS[1]:
-            df = df[((df['home_team_score'] > 10) & (df['home_team_score'] < 20)) &
-                    ((df['visiting_team_score'] > 10) & (df['visiting_team_score'] < 20))]
-        elif set_moment == SET_MOMENTS[2]:
-            df = df[(df['home_team_score'] >= 20) | (df['visiting_team_score'] >= 20)]
+        # Application du filtre set_moment seulement s'il n'est pas "Tout"
+        if set_moment != "Tout" and set_moment in SET_MOMENTS:
+            if set_moment == "0-10":
+                df = df[(df['home_team_score'] <= 10) | (df['visiting_team_score'] <= 10)]
+            elif set_moment == "10-20":
+                df = df[((df['home_team_score'] > 10) & (df['home_team_score'] < 20)) |
+                        ((df['visiting_team_score'] > 10) & (df['visiting_team_score'] < 20))]
+            elif set_moment == "20+":
+                df = df[(df['home_team_score'] >= 20) | (df['visiting_team_score'] >= 20)]
 
         if set_filter is not None:
             if isinstance(set_filter, (list, tuple, set)):
