@@ -1,11 +1,10 @@
 """
 Configuration centrale pour l'application d'analyse de volleyball.
-Contient les constantes, mappings et paramètres partagés entre tous les modules.
-Toute modification de ces valeurs affectera le comportement global de l'application.
+Contient les mappings et configurations plus complexes.
+Les constantes simples ont été déplacées vers constants.py.
 """
 
-# Seuil minimum d'actions pour l'inclusion dans les statistiques
-MIN_ACTIONS = 5
+from constants import MIN_ACTIONS, DEFAULT_THRESHOLDS, SET_MOMENTS, MAIN_TEAM
 
 # Configuration des compétences et leurs évaluations
 SKILL_EVAL_MAPPINGS = {
@@ -60,18 +59,3 @@ SKILL_TABS = {
     "Défense": {"skill": "Dig", "label": "défense"},
     "Attaque": {"skill": "Attack", "label": "attaque"},
 }
-
-# Seuils par défaut pour les objectifs de performance par compétence
-DEFAULT_THRESHOLDS = {
-    "Reception": 40,
-    "Block": 20,
-    "Attack": 30,
-    "Dig": 35,
-    "Serve": 25
-}
-
-# Nom standard de l'équipe principale à suivre
-MAIN_TEAM = "France Avenir"
-
-# Options pour les moments dans le set
-SET_MOMENTS = ["Tout", "Début", "Milieu", "Fin"]

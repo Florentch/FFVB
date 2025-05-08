@@ -2,12 +2,15 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import streamlit as st
-from utils import load_data, unique_preserve_order
+
+from utils import load_data
+from filters import unique_preserve_order
 from skill import skill_comparison_tab
 from player_evolution import player_evolution_tab
-from player import Player
+from player import Player # 
 from stat_global import global_stats_tab
 from config import SKILL_EVAL_MAPPINGS, SKILL_TABS, SET_MOMENTS
+
 
 # Configuration de la page
 st.set_page_config(

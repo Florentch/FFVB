@@ -2,24 +2,21 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
+
 from player import Player
-from config import DEFAULT_THRESHOLDS, SKILL_EVAL_MAPPINGS, SET_MOMENTS
-from utils import display_in_area  # Utilisation de la fonction utilitaire
+from config import SKILL_EVAL_MAPPINGS, DEFAULT_THRESHOLDS, SET_MOMENTS
+from utils import display_in_area, is_team_france_avenir
+from visualizations import create_evolution_chart as viz_create_evolution_chart
+from visualizations import display_radar_with_stats
 
 def player_evolution_tab(players):
     """
     Affiche l'onglet d'évolution des performances des joueurs au fil des matchs
-    
-    Args:
-        players (list): Liste des objets Player
     """
     st.header("📈 Évolution des Performances")
 
     # Filtrer pour ne garder que les joueurs France Avenir avec des données
-    players_with_data = [p for p in players if len(p.df) > 0 and (
-        p.team == "France Avenir" or 
-        (p.team and "france" in p.team.lower() and "avenir" in p.team.lower())
-    )]
+    players_with_data = [p for p in players if len(p.df) > 0 if is_team_france_avenir(p.team)]
 
     if not players_with_data:
         st.warning("Aucun joueur du CNVB 24-25 avec des données n'a été trouvé.")
@@ -55,11 +52,6 @@ def display_player_evolution(player, moment, skill):
     1. Récupère les données des matchs pour la compétence choisie
     2. Permet de sélectionner les matchs à analyser
     3. Affiche les graphiques d'évolution et les statistiques
-    
-    Args:
-        player (Player): Objet joueur à analyser
-        moment (str): Moment du match à analyser (Tout, Début, Milieu, Fin)
-        skill (str): Type de compétence à analyser (Reception, Block, etc.)
     """
     # Récupérer les données de la compétence pour le joueur et le moment
     df_skill = player.get_action_df(skill, moment)
@@ -163,14 +155,6 @@ def display_player_evolution(player, moment, skill):
 def display_global_stats(player, skill, moment, selected_matches, target, target_label):
     """
     Affiche les statistiques globales pour les matchs sélectionnés
-    
-    Args:
-        player (Player): Objet joueur à analyser
-        skill (str): Type de compétence 
-        moment (str): Moment du match
-        selected_matches (list): Liste des matchs sélectionnés
-        target (int): Valeur cible pour la première catégorie
-        target_label (str): Libellé de la première catégorie
     """
     st.subheader("📊 Statistiques globales")
     global_stats = player.get_skill_stats(skill, moment, match_filter=selected_matches)
@@ -190,97 +174,16 @@ def display_global_stats(player, skill, moment, selected_matches, target, target
 def create_evolution_chart(stats_df, target, skill):
     """
     Crée un graphique d'évolution des performances au fil des matchs
-    
-    Args:
-        stats_df (DataFrame): DataFrame contenant les statistiques par match
-        target (int): Valeur cible pour la première catégorie
-        skill (str): Type de compétence
     """
-    fig = go.Figure()
-
-    # Obtenir les libellés des catégories pour cette compétence
-    skill_labels = Player.get_skill_labels()
-
-    # Ajouter une trace pour chaque catégorie
-    colors = ["green", "blue", "orange", "red", "purple", "gray"]
-    for label, color in zip(skill_labels[skill], colors):
-        if label in stats_df.columns:
-            fig.add_trace(go.Scatter(
-                x=stats_df['match_day'],
-                y=stats_df[label],
-                mode='lines+markers',
-                name=label,
-                line=dict(color=color, width=2),
-                marker=dict(size=7)
-            ))
-
-    # Ajouter la ligne d'objectif
-    fig.add_shape(
-        type='line',
-        x0=0,
-        y0=target,
-        x1=1,
-        y1=target,
-        xref="paper",
-        line=dict(color="rgba(0,100,0,0.5)", width=2, dash="dash")
-    )
-    
-    # Simplifier l'ajout d'annotations
-    annotations = [
-        dict(
-            x=0.02, y=target + 2, xref="paper",
-            text=f"Objectif: {target}%", showarrow=False,
-            font=dict(color="rgba(0,100,0,0.8)", size=12)
-        )
-    ]
-
-    # Ajouter le nombre d'actions par match
-    for i, row in stats_df.iterrows():
-        annotations.append(dict(
-            x=row['match_day'], y=5,
-            text=f"N={row['total']}", showarrow=False,
-            font=dict(size=9)
-        ))
-
-    fig.update_layout(annotations=annotations)
-    
+    skill_labels = Player.get_skill_labels()[skill]
+    fig = viz_create_evolution_chart(stats_df, target, skill_labels)
     st.plotly_chart(fig, use_container_width=True)
 
 
 def create_radar_chart(stats_df, skill):
     """
     Crée un graphique radar des performances moyennes par catégorie
-    
-    Args:
-        stats_df (DataFrame): DataFrame contenant les statistiques par match
-        skill (str): Type de compétence
     """
-    if stats_df.empty:
-        return
-
     # Filtrer pour ne garder que les colonnes de pourcentage
     categories = [col for col in stats_df.columns if col.startswith('%')]
-    means = [stats_df[col].mean() for col in categories]
-
-    # Créer le graphique radar
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=means, theta=categories, fill='toself', name='Moyenne'))
-
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-        showlegend=False,
-        height=400
-    )
-
-    # Afficher le graphique et les moyennes côte à côte
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.markdown("### Moyennes")
-        for cat, val in zip(categories, means):
-            st.markdown(f"**{cat}**: {val:.1f}%")
-
-        # Calcul de la stabilité basée sur l'écart-type
-        stability = 100 - stats_df[categories[0]].std()
-        st.markdown(f"**Stabilité**: {stability:.1f}%")
+    display_radar_with_stats(stats_df, categories)
