@@ -11,17 +11,11 @@ def create_bar_chart(df, categories, name_col="Nom", height=500):
     fig = go.Figure()
     for _, row in df.iterrows():
         entity_name = row[name_col]
-        # Détection intelligente des colonnes avec et sans préfixe %
         values = []
         for cat in categories:
-            # Vérifier d'abord si la colonne existe avec le préfixe %
-            if f"% {cat}" in row:
-                values.append(row[f"% {cat}"])
-            # Sinon, vérifier si la catégorie elle-même existe (déjà avec %)
-            elif cat in row:
-                values.append(row[cat])
-            else:
-                values.append(0)  # Valeur par défaut
+            # Détecter intelligemment les colonnes avec préfixe %
+            percent_cat = f"% {cat}" if not cat.startswith("% ") else cat
+            values.append(row.get(percent_cat, row.get(cat, 0)))
         
         fig.add_trace(go.Bar(
             x=categories,
@@ -63,9 +57,16 @@ def create_team_pie_charts(df, categories, label="actions"):
     st.subheader("🧩 Répartition des catégories par équipe")
     for _, row in df.iterrows():
         team = row["Équipe"]
+        
+        # Préparation des valeurs uniformisées
+        values = []
+        for cat in categories:
+            percent_cat = f"% {cat}" if not cat.startswith("% ") else cat
+            values.append(row.get(percent_cat, row.get(cat, 0)))
+        
         pie = create_pie_chart(
             labels=categories,
-            values=[row[f"% {cat}"] for cat in categories],
+            values=values,
             title=f"{team} - {int(row['Nbre Total'])} {label}"
         )
         st.plotly_chart(pie, use_container_width=True)

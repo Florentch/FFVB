@@ -5,15 +5,20 @@ from collections import defaultdict
 
 from utils import player_selector, team_selector, get_match_selector, display_in_area
 from visualizations import create_bar_chart, create_pie_chart, create_team_pie_charts
+from config import SKILL_DISPLAY_METRICS
+from constants import MIN_ACTIONS
 
 
-# Dans skill.py, remplacer la fonction skill_comparison_tab
 def skill_comparison_tab(players, skill, label="réceptions", categories=None):
     """
     Affiche l'onglet de comparaison des compétences des joueurs
     """
+    
     st.header(f"📥 Analyse des {label}")
 
+    # Récupérer les métriques spécifiques à la compétence
+    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+    
     # Filtrer les joueurs qui ont des données pour cette compétence
     players_with_data = filter_players_with_data(players, skill)
     if not players_with_data:
@@ -35,7 +40,7 @@ def skill_comparison_tab(players, skill, label="réceptions", categories=None):
     # Affichage selon le mode sélectionné
     show_comparison_by_mode(
         mode, players_with_data, selected_matches, 
-        moment, set_filter, skill, label, categories
+        moment, set_filter, skill, label, specific_categories
     )
 
 # Nouvelle fonction pour dispatcher selon le mode
@@ -53,7 +58,7 @@ def filter_players_with_data(players, skill):
     """
     Filtre les joueurs qui ont suffisamment de données pour l'analyse
     """
-    return [p for p in players if len(p.get_action_df(skill)) > 4]
+    return [p for p in players if len(p.get_action_df(skill)) > MIN_ACTIONS]
 
 
 def setup_comparison_mode_selector():
@@ -105,15 +110,18 @@ def display_player_stats(players, selected_matches, moment, set_filter, skill, l
     """
     Affiche les statistiques par joueur
     """
+    # Récupérer les métriques spécifiques à la compétence ou utiliser des métriques par défaut
+    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+    
     # Affichage du tableau de données
     st.dataframe(df.set_index("Nom"), use_container_width=True)
     
-    # Création du graphique
-    fig = create_player_bar_chart(df, categories)
+    # Création du graphique avec les métriques spécifiques
+    fig = create_player_bar_chart(df, specific_categories)
     st.plotly_chart(fig, use_container_width=True)
     
     # Affichage du classement des joueurs
-    display_player_ranking(df, categories)
+    display_player_ranking(df, specific_categories, skill)
 
 
 def create_player_bar_chart(df, categories):
@@ -123,31 +131,52 @@ def create_player_bar_chart(df, categories):
     return create_bar_chart(df, categories)
 
 
-def display_player_ranking(df, categories):
+def display_player_ranking(df, categories, skill):
     """
     Affiche le classement des joueurs selon la métrique principale
     """
-    # Déterminer la métrique de classement (première catégorie en %)
+    
+    # Toujours utiliser l'efficacité comme métrique de classement
     main_metric = "% Efficacité"
-
+    
     data = df.to_dict('records')
     
     if main_metric and all(main_metric in d for d in data):
         classement = sorted(data, key=lambda x: -x.get(main_metric, 0))
         st.subheader(f"🏆 Classement : {main_metric}")
-        columns_to_show = ["Nom", "Équipe", main_metric, categories[0], categories[5], "Total"]
+        
+        # Récupérer les métriques d'affichage pour cette compétence
+        specific_metrics = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+        
+        # Préparer les colonnes à afficher (toujours inclure Nom, Équipe, main_metric et Total)
+        columns_to_show = ["Nom", "Équipe", main_metric]
+        
+        # Ajouter les métriques spécifiques (sauf l'efficacité qui est déjà incluse)
+        for metric in specific_metrics:
+            if metric != main_metric:
+                columns_to_show.append(metric)
+        
+        # Ajouter le total à la fin
+        columns_to_show.append("Total")
     else:
         classement = data
         st.subheader("🏆 Classement indisponible")
         columns_to_show = ["Nom", "Équipe", "Total"]
 
+    # Filtrer les colonnes qui existent réellement dans le DataFrame
+    columns_to_show = [col for col in columns_to_show if col in pd.DataFrame(classement).columns or col == "Équipe" or col == "Nom"]
+    
     st.table(pd.DataFrame(classement)[columns_to_show])
 
 
+# Dans skill.py, modifiez display_team_stats
 def display_team_stats(df, skill, label, categories):
     """
     Affiche les statistiques par équipe
-    """
+    """  
+    # Récupérer les métriques spécifiques à la compétence
+    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+    
     st.subheader("📊 Statistiques moyennes par équipe")
 
     # Prétraitement du DataFrame pour supprimer les préfixes % en double
@@ -161,8 +190,8 @@ def display_team_stats(df, skill, label, categories):
     # Affichage du tableau
     st.dataframe(display_df.set_index("Équipe"), use_container_width=True)
 
-    # Affichage des graphiques en camembert
-    display_team_pie_charts(df, categories, label)
+    # Affichage des graphiques en camembert avec les catégories spécifiques
+    display_team_pie_charts(df, specific_categories, label)
 
 
 # Remplacer la fonction display_team_pie_charts

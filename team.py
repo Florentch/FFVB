@@ -14,12 +14,6 @@ class Team:
     def create_france_avenir_global_player(players):
         """
         Crée un joueur "global" représentant les statistiques agrégées de l'équipe France Avenir.
-        
-        Args:
-            players: Liste de tous les joueurs
-            
-        Returns:
-            Player: Un objet Player contenant les statistiques agrégées
         """
         fa_players = [p for p in players if is_team_france_avenir(p.team)]
         fa_combined_df = pd.concat([p.df for p in fa_players], ignore_index=True) if fa_players else pd.DataFrame()
@@ -29,12 +23,6 @@ class Team:
     def create_other_teams_global_player(players):
         """
         Crée un joueur "global" représentant les statistiques agrégées des équipes autres que France Avenir.
-        
-        Args:
-            players: Liste de tous les joueurs
-            
-        Returns:
-            Player: Un objet Player contenant les statistiques agrégées
         """
         other_players = [p for p in players if not is_team_france_avenir(p.team)]
         other_combined_df = pd.concat([p.df for p in other_players], ignore_index=True) if other_players else pd.DataFrame()
@@ -44,14 +32,6 @@ class Team:
     def create_team_global_player(players, team_name, id_prefix="team_"):
         """
         Crée un joueur "global" représentant les statistiques agrégées d'une équipe spécifique.
-        
-        Args:
-            players: Liste de tous les joueurs
-            team_name: Nom de l'équipe à agréger
-            id_prefix: Préfixe pour l'ID du joueur global (par défaut: "team_")
-            
-        Returns:
-            Player: Un objet Player contenant les statistiques agrégées
         """
         team_players = [p for p in players if p.team == team_name]
         if not team_players:
@@ -71,12 +51,6 @@ class Team:
     def get_all_teams(players):
         """
         Récupère la liste de toutes les équipes présentes dans la liste des joueurs.
-        
-        Args:
-            players: Liste de tous les joueurs
-            
-        Returns:
-            list: Liste des noms d'équipes uniques
         """
         return sorted(list(set(p.team for p in players if p.team)))
     
@@ -84,12 +58,6 @@ class Team:
     def create_all_team_global_players(players):
         """
         Crée des joueurs "globaux" pour chaque équipe présente dans les données.
-        
-        Args:
-            players: Liste de tous les joueurs
-            
-        Returns:
-            list: Liste des joueurs globaux, un par équipe
         """
         teams = Team.get_all_teams(players)
         return [Team.create_team_global_player(players, team) for team in teams if team]

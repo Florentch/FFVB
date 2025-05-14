@@ -20,10 +20,6 @@ def display_in_area(element_function: Callable, *args, **kwargs):
 def create_metric_row(metrics_data: List[Dict[str, Any]], n_columns: int = 4):
     """
     Crée une rangée de métriques dans le dashboard
-    
-    Args:
-        metrics_data: Liste de dictionnaires avec les clés 'label', 'value', et optionnellement 'delta'
-        n_columns: Nombre de colonnes pour l'affichage
     """
     columns = st.columns(n_columns)
     
@@ -51,11 +47,6 @@ def display_warning_if_empty(data: Union[pd.DataFrame, List], message: str):
 def create_expander_section(title: str, content_function: Callable, expanded: bool = False):
     """
     Crée une section expansible avec un titre et un contenu
-    
-    Args:
-        title: Titre de la section
-        content_function: Fonction à exécuter à l'intérieur de l'expander
-        expanded: Si la section est développée par défaut
     """
     with st.expander(title, expanded=expanded):
         return content_function()
@@ -73,9 +64,6 @@ def display_table_with_title(title: str, data: pd.DataFrame, use_container_width
 def create_tab_section(tabs_data: Dict[str, Callable]):
     """
     Crée une section à onglets
-    
-    Args:
-        tabs_data: Dictionnaire avec les noms d'onglets comme clés et les fonctions de contenu comme valeurs
     """
     tabs = st.tabs(list(tabs_data.keys()))
     

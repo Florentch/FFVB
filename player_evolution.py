@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 
 from player import Player
-from config import SKILL_EVAL_MAPPINGS, DEFAULT_THRESHOLDS, SET_MOMENTS
+from config import SKILL_EVAL_MAPPINGS, DEFAULT_THRESHOLDS, SET_MOMENTS, SKILL_DISPLAY_METRICS
 from utils import display_in_area, is_team_france_avenir
 from visualizations import create_evolution_chart as viz_create_evolution_chart
 from visualizations import display_radar_with_stats
@@ -127,8 +127,7 @@ def display_player_evolution(player, moment, skill):
         st.dataframe(stats_df)
 
     # Récupérer la première catégorie pour la compétence sélectionnée
-    first_category = list(dict.fromkeys(SKILL_EVAL_MAPPINGS[skill].values()))[0]
-    target_label = f"% {first_category}"
+    target_label = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])[0]  # Prend la première métrique définie
 
     # Objectif par défaut depuis la config
     target_default = DEFAULT_THRESHOLDS.get(skill, 25)  # 25% par défaut si non précisé
@@ -161,21 +160,21 @@ def display_global_stats(player, skill, moment, selected_matches, target, target
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric(target_label, f"{global_stats[target_label]}%")
+        st.metric(target_label, f"{global_stats[target_label]:.2f}%")
     with col2:
         st.metric(target_label.split("% ")[-1], global_stats.get(target_label.split("% ")[-1], 0))
     with col3:
         st.metric("Total", global_stats["Total"])
     with col4:
         delta = global_stats[target_label] - target
-        st.metric("Vs. Objectif", f"{delta}%", delta_color="normal" if delta >= 0 else "inverse")
+        st.metric("Vs. Objectif", f"{delta:.2f}%", delta_color="normal" if delta >= 0 else "inverse")
 
 
 def create_evolution_chart(stats_df, target, skill):
     """
     Crée un graphique d'évolution des performances au fil des matchs
     """
-    skill_labels = Player.get_skill_labels()[skill]
+    skill_labels = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])
     fig = viz_create_evolution_chart(stats_df, target, skill_labels)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -185,5 +184,5 @@ def create_radar_chart(stats_df, skill):
     Crée un graphique radar des performances moyennes par catégorie
     """
     # Filtrer pour ne garder que les colonnes de pourcentage
-    categories = [col for col in stats_df.columns if col.startswith('%')]
+    categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])
     display_radar_with_stats(stats_df, categories)

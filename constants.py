@@ -4,7 +4,8 @@ Ce fichier contient uniquement les valeurs constantes qui ne contiennent pas de 
 """
 
 # Seuil minimum d'actions pour l'inclusion dans les statistiques
-MIN_ACTIONS = 5
+MIN_ACTIONS = 30
+MIN_SET = 100
 
 # Nom standard de l'équipe principale à suivre
 MAIN_TEAM = "France Avenir"
