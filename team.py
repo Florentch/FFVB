@@ -61,3 +61,41 @@ class Team:
         """
         teams = Team.get_all_teams(players)
         return [Team.create_team_global_player(players, team) for team in teams if team]
+
+
+
+    @staticmethod
+    def get_all_best_players(players, set_moment="Tout", match_filter=None, set_filter=None, min_actions=10):
+        """
+        Retourne les meilleurs joueurs pour chaque compétence et l'efficacité moyenne.
+        """
+        skills = ["Attack", "Block", "Serve", "Reception", "Dig", "Set"]
+        result = {
+            'best_players': {},
+            'average_efficiency': {}
+        }
+        
+        for skill in skills:
+            # Récupérer le meilleur joueur pour cette compétence
+            best_player_data = Player.get_best_players_by_skill(
+                players, skill, set_moment, match_filter, set_filter, min_actions
+            )
+            
+            if best_player_data:
+                result['best_players'][skill] = {
+                    'name': best_player_data['player'].get_full_name(),
+                    'team': best_player_data['player'].team,
+                    'efficiency': best_player_data['efficiency'],
+                    'total_actions': best_player_data['total_actions']
+                }
+            else:
+                result['best_players'][skill] = None
+            
+            # Calculer l'efficacité moyenne
+            avg_efficiency = Player.get_average_efficiency_by_skill(
+                players, skill, set_moment, match_filter, set_filter, min_actions//2  # Seuil plus bas pour la moyenne
+            )
+            
+            result['average_efficiency'][skill] = avg_efficiency
+        
+        return result

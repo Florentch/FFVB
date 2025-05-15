@@ -152,3 +152,64 @@ METRIC_COLORS = {
     "% Efficacité": "purple",
     "% Erreur": "red"
 }
+
+SET_TYPE = {
+    "K1" : "Fix Avant",
+    "K2" : "Fix Arrière",
+    "K7" : "K7 ?",
+    "KA" : "CONTRE ATT SANS FIX",
+    "KB" : "Réception en 2 - Fix Arrière",
+    "KC" : "Basket",
+    "KD" : "Réception en 4 - Fix Arrière",
+    "KE" : "Pas de premier temps",
+    "KF" : "Réception en 4 - 5",
+    "KI" : "KI ?",
+    "KJ" : "KJ ?",
+    "KK" : "Réception en 2 - Fix en poste",
+    "KL" : "FLOTTANTE",
+    "KM" : "Réception en 2 - Fix Avant",
+    "KN" : "Mauvaise réception centrée",
+    "KO" : "Réception en 2 - 1",
+    "KP" : "Réception en 4 - Fix Avant",
+    "KR" : "CONTRE ATT AV FIX", # Existe pas ? 
+    "KS" : "Réception en 4 - Tendue",
+    "KT" : "KT ?",
+    "KX" : "Réception en 2 - Tendue",
+    "K7" : "Tendu"    
+}
+
+ATTACK_TYPE = {
+    'CB': 'Basket Deux Doigts',
+    'CD': 'Basket Tête',
+    'CF': 'Basket Mire',
+    'P2': 'Attaque sur deuxième touche',
+    'PK': 'Attaque non classifiable',
+    'PP': 'Première main du passeur',
+    'PR': 'Retour Direct',
+    'V0': 'Haute en 5',
+    'V3': 'Haute en 3',
+    'V5': 'Haute en 4',
+    'V6': 'Haute en 2',
+    'V8': 'Haute en 1',
+    'VP': 'Pipe Haute',
+    'X0': 'Accélérée en 5',
+    'X1': 'Fix Avant',
+    'X2': 'Fix Arrière',
+    'X3': 'Croix',
+    'X4': 'Demi derrière',
+    'X5': 'Accélérée en 4',
+    'X6': 'Accélérée en 2',
+    'X7': 'Tendue',
+    'X8': 'Accélérée en 1',
+    'X9': '4 Exterval',
+    'XB': 'Pipe 6-1',
+    'XC': 'Fix Avant C',
+    'XD': 'Double C',
+    'XF': 'Basket du Pointu',
+    'XM': 'Fix en poste 3',
+    'XO': 'Fix Arrière du Pointu',
+    'XP': 'Pipe',
+    'XR': 'Pipe 6-5',
+    'XT': '4 Interval'
+}
+

@@ -420,6 +420,32 @@ class Player:
                 'attack_code' in action and 
                 action['attack_code'] == attack_type)
 
+    @classmethod
+    def get_best_players_by_skill(cls, players, skill, set_moment="Tout", match_filter=None, set_filter=None, min_actions=10):
+        """
+        Retourne le joueur le plus efficace pour une compétence donnée, avec un minimum d'actions requises.
+        """
+        valid_players = []
+        
+        for player in players:
+            stats = player.get_skill_stats(skill, set_moment, match_filter, set_filter)
+            
+            # Vérifier si le joueur a suffisamment d'actions
+            if stats.get('Total', 0) >= min_actions:
+                valid_players.append({
+                    'player': player,
+                    'efficiency': stats.get('% Efficacité', 0),
+                    'total_actions': stats.get('Total', 0)
+                })
+        
+        # Trier les joueurs par efficacité décroissante
+        valid_players.sort(key=lambda x: x['efficiency'], reverse=True)
+        
+        if not valid_players:
+            return None
+            
+        return valid_players[0]
+
 
 # Fonctions utilitaires
 
@@ -455,3 +481,4 @@ def _evaluate_metric_formula(formula, symbols_data):
         parts = formula.split(" + ")
         return sum(eval(part, {"__builtins__": {}}, symbols_data) for part in parts)
     return eval(formula, {"__builtins__": {}}, symbols_data)
+

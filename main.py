@@ -2,11 +2,11 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import streamlit as st
-
 from utils import load_data
 from filters import unique_preserve_order
 from skill import skill_comparison_tab
 from player_evolution import player_evolution_tab
+from player_comparison import make_comparison_tab 
 from set_skill import set_tab
 from stat_global import global_stats_tab
 from config import SKILL_EVAL_MAPPINGS, SKILL_TABS, SET_MOMENTS
@@ -34,6 +34,11 @@ st.title("📊 Analyse de Volleyball")
 # Chargement des données
 with st.spinner("Chargement des données..."):
     players, players_df = load_data()
+    
+    # Stocker les données des joueurs dans la session state pour qu'elles soient accessibles partout
+    if 'players' not in st.session_state:
+        st.session_state['players'] = players  # Utiliser la même clé 'players' partout
+        st.session_state['players_df'] = players_df
 
 # Initialisation des états de session
 if 'active_section' not in st.session_state:
@@ -106,13 +111,19 @@ with st.sidebar:
             
             # Option pour épingler les sélections
             st.checkbox("Épingler les sélections", value=True, help="Garde les sélections de joueurs et de matchs visibles lors du défilement", key="pin_selections")
+    
+    # Sous-menu pour la section Stats Joueur
+    elif st.session_state.active_section == "Stats Joueur":
+        player_options = ["Joueur", "Comparaison"]  # Options incluant la comparaison
+        selected_player_view = st.radio("Vue", player_options, key="player_view_radio", label_visibility="collapsed")
+        st.session_state.active_item = selected_player_view
 
 # Définir le menu sélectionné en fonction de la sélection active
 selected_menu = st.session_state.active_item
 
 # Affichage selon l'onglet sélectionné
 if selected_menu == "Statistique globale":
-    global_stats_tab(players)
+    global_stats_tab(st.session_state['players'])  # Utiliser les joueurs de la session state
 
 elif selected_menu in SKILL_TABS:
     config = SKILL_TABS[selected_menu]
@@ -120,18 +131,24 @@ elif selected_menu in SKILL_TABS:
     label = config["label"]
 
     if selected_menu == "Passe":
-        if players:
-            set_tab(players)
+        if st.session_state['players']:
+            set_tab(st.session_state['players'])
         else:
             st.warning("Aucune donnée disponible pour l'analyse des passes.")
-    elif players:
+    elif st.session_state['players']:
         categories = unique_preserve_order(SKILL_EVAL_MAPPINGS.get(skill, {}).values())
-        skill_comparison_tab(players, skill=skill, label=label, categories=categories)
+        skill_comparison_tab(st.session_state['players'], skill=skill, label=label, categories=categories)
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")
 
 elif selected_menu == "Joueur":
-    if players:
-        player_evolution_tab(players)
+    if st.session_state['players']:
+        player_evolution_tab(st.session_state['players'])
+    else:
+        st.warning("Aucune donnée disponible pour l'analyse.")
+
+elif selected_menu == "Comparaison":
+    if st.session_state['players']:
+        make_comparison_tab(st.session_state['players'])  # Passer les joueurs de la session state
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")

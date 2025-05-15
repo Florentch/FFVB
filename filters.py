@@ -239,8 +239,16 @@ def filter_players_by_criteria(players, min_actions=5, skill=None):
     all_skills = ['Reception', 'Block', 'Serve', 'Attack', 'Dig']
     return [p for p in players if sum(len(p.get_action_df(s)) for s in all_skills) > min_actions]
 
-def filter_players_with_data(players, skill, min_actions=4):
+def filter_players_with_data(players, match_filter=None, skill=None, min_actions=4):
     """
-    Filtre les joueurs qui ont suffisamment de données pour l'analyse
+    Filtre les joueurs qui ont suffisamment de données pour l'analyse.
     """
-    return [p for p in players if len(p.get_action_df(skill)) > min_actions]
+    if skill is None:
+        # Si aucune compétence n'est spécifiée, retourner tous les joueurs
+        return players
+    
+    # Filtrer les joueurs par compétence et nombre minimum d'actions
+    if match_filter:
+        return [p for p in players if len(p.get_action_df(skill, match_filter=match_filter)) > min_actions]
+    else:
+        return [p for p in players if len(p.get_action_df(skill)) > min_actions]

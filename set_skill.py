@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from utils import player_selector, get_match_selector
 from constants import MIN_SET
+from config import SET_TYPE, ATTACK_TYPE
+from ui_utils import display_table_with_title, display_warning_if_empty
+from filters import unique_preserve_order, create_selector
 
 
 def set_tab(players):
@@ -13,15 +16,19 @@ def set_tab(players):
     # Filtrer les joueurs qui ont fait plus de MIN_SET passes
     passeurs = [p for p in players if len(p.get_action_df("Set")) > MIN_SET]
     
-    if not passeurs:
-        st.warning(f"Aucun joueur avec suffisamment de passes (min. {MIN_SET}) n'a été trouvé.")
+    if display_warning_if_empty(passeurs, f"Aucun joueur avec suffisamment de passes (min. {MIN_SET}) n'a été trouvé."):
         return
     
     # Configuration de l'interface et récupération des sélections
     selected_matches = get_match_selector(passeurs)
     
-    if not selected_matches:
-        st.warning("⚠️ Veuillez sélectionner au moins un match pour afficher les statistiques.")
+    if display_warning_if_empty(selected_matches, "⚠️ Veuillez sélectionner au moins un match pour afficher les statistiques."):
+        return
+    
+    # Ajout du sélecteur de joueurs
+    selected_passeurs = select_passeurs(passeurs)
+    
+    if display_warning_if_empty(selected_passeurs, "⚠️ Veuillez sélectionner au moins un passeur pour afficher les statistiques."):
         return
     
     # Récupération des filtres de session
@@ -29,47 +36,106 @@ def set_tab(players):
     set_filter = st.session_state.get('selected_sets', None)
     
     # Extraire les types de passes et d'attaques disponibles
-    all_set_types = get_all_set_types(passeurs, selected_matches)
-    all_attack_types = get_all_attack_types(passeurs, selected_matches)
+    all_set_types_codes = get_all_types_from_column(selected_passeurs, "Set", "set_code", selected_matches)
+    all_attack_types_codes = get_all_attack_types(selected_passeurs, selected_matches)
+    
+    # Convertir les codes en noms explicites
+    all_set_types_display = [get_display_name(code, SET_TYPE) for code in all_set_types_codes]
+    all_attack_types_display = [get_display_name(code, ATTACK_TYPE) for code in all_attack_types_codes]
+    
+    # Créer les dictionnaires de mapping pour la conversion nom -> code
+    set_display_to_code = {get_display_name(code, SET_TYPE): code for code in all_set_types_codes}
+    attack_display_to_code = {get_display_name(code, ATTACK_TYPE): code for code in all_attack_types_codes}
     
     # Créer les filtres pour les types de passes et d'attaques
     col1, col2 = st.columns(2)
     
     with col1:
-        # Initialiser la session si nécessaire
-        if 'selected_set_type' not in st.session_state:
-            st.session_state['selected_set_type'] = "Tous"
-            
-        selected_set_type = st.selectbox(
+        selected_set_type, selected_set_type_display = create_type_selector(
+            "set_type", 
             "Type de passe",
-            ["Tous"] + all_set_types,
-            index=0,
-            key="set_type_selector"
+            all_set_types_display,
+            set_display_to_code
         )
-        st.session_state['selected_set_type'] = selected_set_type
     
     with col2:
-        # Initialiser la session si nécessaire
-        if 'selected_attack_type' not in st.session_state:
-            st.session_state['selected_attack_type'] = "Tous"
-            
-        selected_attack_type = st.selectbox(
+        selected_attack_type, selected_attack_type_display = create_type_selector(
+            "attack_type", 
             "Type d'attaque",
-            ["Tous"] + all_attack_types,
-            index=0,
-            key="attack_type_selector"
+            all_attack_types_display,
+            attack_display_to_code
         )
-        st.session_state['selected_attack_type'] = selected_attack_type
     
     # Affichage des statistiques de base avec les nouveaux filtres
     display_set_stats(
-        passeurs, 
+        selected_passeurs, 
         selected_matches, 
         moment, 
         set_filter, 
         selected_set_type, 
-        selected_attack_type
+        selected_attack_type,
+        selected_set_type_display if selected_set_type_display != "Tous" else None,
+        selected_attack_type_display if selected_attack_type_display != "Tous" else None
     )
+
+
+def select_passeurs(passeurs):
+    """
+    Crée un sélecteur de passeurs
+    """
+    # Créer un dictionnaire pour associer les noms complets aux objets joueurs
+    passeur_dict = {f"{p.first_name} {p.last_name}": p for p in passeurs}
+    all_names = list(passeur_dict.keys())
+    
+    # Format d'affichage avec équipe
+    options = {
+        f"{p.first_name} {p.last_name}": f"{(p.team or 'Sans équipe')[:3]} - {p.first_name} {p.last_name}"
+        for p in passeurs
+    }
+    
+    # Créer le sélecteur de joueurs
+    format_func = lambda x: options.get(x, x)
+    selected_names = create_selector(all_names, "passeurs", "selected_passeurs", format_func, 
+                                    default_selection=all_names if all_names else [])
+    
+    # Convertir les noms sélectionnés en objets joueurs
+    return [passeur_dict[name] for name in selected_names]
+
+
+def create_type_selector(type_key, label, display_options, display_to_code_map):
+    """
+    Crée un sélecteur de type générique (set ou attack)
+    """
+    # Initialiser la session si nécessaire
+    if f'selected_{type_key}_display' not in st.session_state:
+        st.session_state[f'selected_{type_key}_display'] = "Tous"
+        st.session_state[f'selected_{type_key}'] = "Tous"
+        
+    selected_display = st.selectbox(
+        label,
+        ["Tous"] + display_options,
+        index=0,
+        key=f"{type_key}_selector"
+    )
+    
+    # Convertir l'affichage en code pour traitement interne
+    if selected_display == "Tous":
+        selected_code = "Tous"
+    else:
+        selected_code = display_to_code_map.get(selected_display, selected_display)
+    
+    st.session_state[f'selected_{type_key}_display'] = selected_display
+    st.session_state[f'selected_{type_key}'] = selected_code
+    
+    return selected_code, selected_display
+
+
+def get_display_name(code, type_dict):
+    """
+    Convertit un code en nom explicite en utilisant le dictionnaire fourni.
+    Si le code n'est pas trouvé, renvoie le code original.
+    """
+    return type_dict.get(code, code)
 
 
 def get_all_types_from_column(players, action_type, column_name, match_filter=None):
@@ -83,13 +149,6 @@ def get_all_types_from_column(players, action_type, column_name, match_filter=No
             unique_types = df[column_name].dropna().unique()
             types.update(unique_types)
     return sorted(list(types))
-
-
-def get_all_set_types(players, match_filter=None):
-    """
-    Récupère tous les types de passes disponibles
-    """
-    return get_all_types_from_column(players, "Set", "set_code", match_filter)
 
 
 def get_all_attack_types(players, match_filter=None):
@@ -144,7 +203,8 @@ def calculate_stats_row(passeur, stats):
     }
 
 
-def display_set_stats(passeurs, selected_matches, moment, set_filter, set_type="Tous", attack_type="Tous"):
+def display_set_stats(passeurs, selected_matches, moment, set_filter, set_type="Tous", 
+                     attack_type="Tous", set_type_display=None, attack_type_display=None):
     """
     Affiche les statistiques de base des passeurs avec filtres supplémentaires
     """
@@ -167,25 +227,25 @@ def display_set_stats(passeurs, selected_matches, moment, set_filter, set_type="
         if row:
             data.append(row)
     
+    # Construction du titre avec description des filtres
+    title = "Statistiques "
+    filter_parts = []
+    
+    if set_type != "Tous":
+        set_name = set_type_display if set_type_display else f"Type de passe: {set_type}"
+        filter_parts.append(f"Type de passe: {set_name}")
+    if attack_type != "Tous":
+        attack_name = attack_type_display if attack_type_display else f"Type d'attaque: {attack_type}"
+        filter_parts.append(f"Type d'attaque: {attack_name}")
+    
+    if filter_parts:
+        title += f"filtrées ({', '.join(filter_parts)})"
+    else:
+        title += "globales"
+    
     # Création et affichage du DataFrame
     if data:
         df = pd.DataFrame(data)
-        
-        # Construction du titre avec description des filtres
-        title = "Statistiques "
-        filter_parts = []
-        
-        if set_type != "Tous":
-            filter_parts.append(f"Type de passe: {set_type}")
-        if attack_type != "Tous":
-            filter_parts.append(f"Type d'attaque: {attack_type}")
-        
-        if filter_parts:
-            title += f"filtrées ({', '.join(filter_parts)})"
-        else:
-            title += "globales"
-            
-        st.subheader(title)
-        st.dataframe(df.set_index("Nom"), use_container_width=True)
+        display_table_with_title(title, df.set_index("Nom"), use_container_width=True)
     else:
         st.warning("Aucune donnée disponible pour les filtres sélectionnés.")
