@@ -1,19 +1,16 @@
 """
-Constantes utilisées à travers l'application.
-Ce fichier contient uniquement les valeurs constantes qui ne contiennent pas de logique.
+Constants used throughout the application.
 """
 
-# Seuil minimum d'actions pour l'inclusion dans les statistiques
+# Minimum threshold of actions for inclusion in statistics
 MIN_ACTIONS = 30
 MIN_SET = 100
-
-# Nom standard de l'équipe principale à suivre
 MAIN_TEAM = "France Avenir"
 
-# Options pour les moments dans le set
+# Options for moments in the set
 SET_MOMENTS = ["Tout", "0-10", "10-20", "20+"]
 
-# Seuils par défaut pour les objectifs de performance par compétence
+# Default thresholds for performance objectives by skill
 DEFAULT_THRESHOLDS = {
     "Reception": 40,
     "Block": 20,
@@ -21,3 +18,14 @@ DEFAULT_THRESHOLDS = {
     "Dig": 35,
     "Serve": 25
 }
+
+SKILL_TRANSLATION = {
+    "Attack": "Attaque", 
+    "Block": "Bloc", 
+    "Serve": "Service",
+    "Reception": "Réception", 
+    "Dig": "Défense", 
+    "Set": "Passe"
+}
+
+KEY_METRICS = ["% Efficacité", "% Kill", "% Erreur", "Total"]

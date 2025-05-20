@@ -1,19 +1,18 @@
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
+from typing import List, Dict, Optional, Union, Tuple
 
 from player import Player
 
-def create_bar_chart(df, categories, name_col="Nom", height=500):
-    """
-    Crée un graphique à barres groupées pour comparer des entités
-    """
+def create_bar_chart(df: pd.DataFrame, categories: List[str], name_col: str = "Name", height: int = 500) -> go.Figure:
+    """Creates a grouped bar chart to compare entities"""
     fig = go.Figure()
     for _, row in df.iterrows():
         entity_name = row[name_col]
         values = []
         for cat in categories:
-            # Détecter intelligemment les colonnes avec préfixe %
+            # Intelligently detect columns with % prefix
             percent_cat = f"% {cat}" if not cat.startswith("% ") else cat
             values.append(row.get(percent_cat, row.get(cat, 0)))
         
@@ -26,17 +25,15 @@ def create_bar_chart(df, categories, name_col="Nom", height=500):
 
     fig.update_layout(
         barmode='group', 
-        xaxis_title="Catégories", 
-        yaxis_title="Pourcentage (%)", 
+        xaxis_title="Categories", 
+        yaxis_title="Percentage (%)", 
         height=height, 
         template="plotly_white"
     )
     return fig
 
-def create_pie_chart(labels, values, title="", hole=0.4, height=400):
-    """
-    Crée un graphique en camembert
-    """
+def create_pie_chart(labels: List[str], values: List[float], title: str = "", hole: float = 0.4, height: int = 400) -> go.Figure:
+    """Creates a pie chart with customizable options"""
     fig = go.Figure(data=[
         go.Pie(
             labels=labels,
@@ -50,15 +47,13 @@ def create_pie_chart(labels, values, title="", hole=0.4, height=400):
     )
     return fig
 
-def create_team_pie_charts(df, categories, label="actions"):
-    """
-    Affiche des graphiques en camembert pour chaque équipe
-    """
-    st.subheader("🧩 Répartition des catégories par équipe")
+def create_team_pie_charts(df: pd.DataFrame, categories: List[str], label: str = "actions") -> None: 
+    """Displays pie charts for each team"""
+    st.subheader("🧩 Category distribution by team")
     for _, row in df.iterrows():
-        team = row["Équipe"]
+        team = row["Team"]
         
-        # Préparation des valeurs uniformisées
+        # Prepare standardized values
         values = []
         for cat in categories:
             percent_cat = f"% {cat}" if not cat.startswith("% ") else cat
@@ -67,17 +62,15 @@ def create_team_pie_charts(df, categories, label="actions"):
         pie = create_pie_chart(
             labels=categories,
             values=values,
-            title=f"{team} - {int(row['Nbre Total'])} {label}"
+            title=f"{team} - {int(row['Total Count'])} {label}"
         )
         st.plotly_chart(pie, use_container_width=True)
         
-def create_evolution_chart(stats_df, target, skill_labels, target_label="% Parfaite"):
-    """
-    Crée un graphique d'évolution des performances au fil des matchs
-    """
+def create_evolution_chart(stats_df: pd.DataFrame, target: float, skill_labels: List[str], target_label: str = "% Perfect") -> go.Figure:
+    """Creates a chart showing performance evolution over matches"""
     fig = go.Figure()
 
-    # Ajouter une trace pour chaque catégorie
+    # Add a trace for each category
     colors = ["green", "blue", "orange", "red", "purple", "gray"]
     for label, color in zip(skill_labels, colors):
         if label in stats_df.columns:
@@ -90,7 +83,7 @@ def create_evolution_chart(stats_df, target, skill_labels, target_label="% Parfa
                 marker=dict(size=7)
             ))
 
-    # Ajouter la ligne d'objectif
+    # Add target line
     fig.add_shape(
         type='line',
         x0=0,
@@ -101,16 +94,16 @@ def create_evolution_chart(stats_df, target, skill_labels, target_label="% Parfa
         line=dict(color="rgba(0,100,0,0.5)", width=2, dash="dash")
     )
     
-    # Ajouter les annotations
+    # Add annotations
     annotations = [
         dict(
             x=0.02, y=target + 2, xref="paper",
-            text=f"Objectif: {target}%", showarrow=False,
+            text=f"Target: {target}%", showarrow=False,
             font=dict(color="rgba(0,100,0,0.8)", size=12)
         )
     ]
 
-    # Ajouter le nombre d'actions par match
+    # Add action count per match
     for i, row in stats_df.iterrows():
         annotations.append(dict(
             x=row['match_day'], y=5,
@@ -121,19 +114,17 @@ def create_evolution_chart(stats_df, target, skill_labels, target_label="% Parfa
     fig.update_layout(annotations=annotations)
     return fig
 
-def create_radar_chart(stats_df, categories):
-    """
-    Crée un graphique radar des performances moyennes par catégorie
-    """
+def create_radar_chart(stats_df: pd.DataFrame, categories: List[str]) -> Tuple[Optional[go.Figure], List[float]]: 
+    """Creates a radar chart of average performance by category"""
     if stats_df.empty:
         return None
 
-    # Calculer les moyennes pour chaque catégorie
+    # Calculate means for each category
     means = [stats_df[col].mean() for col in categories]
 
-    # Créer le graphique radar
+    # Create radar chart
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=means, theta=categories, fill='toself', name='Moyenne'))
+    fig.add_trace(go.Scatterpolar(r=means, theta=categories, fill='toself', name='Average'))
 
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
@@ -143,25 +134,23 @@ def create_radar_chart(stats_df, categories):
     
     return fig, means
 
-def display_radar_with_stats(stats_df, categories):
-    """
-    Affiche un graphique radar avec les statistiques moyennes
-    """
+def display_radar_with_stats(stats_df: pd.DataFrame, categories: List[str]) -> None:
+    """Displays a radar chart with average statistics"""
     if stats_df.empty:
         return
         
     fig, means = create_radar_chart(stats_df, categories)
     
-    # Afficher le graphique et les moyennes côte à côte
+    # Display chart and means side by side
     col1, col2 = st.columns([2, 1])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
     with col2:
-        st.markdown("### Moyennes")
+        st.markdown("### Averages")
         for cat, val in zip(categories, means):
             st.markdown(f"**{cat}**: {val:.1f}%")
 
-        # Calcul de la stabilité basée sur l'écart-type
+        # Calculate stability based on standard deviation
         if categories and categories[0] in stats_df.columns:
             stability = 100 - stats_df[categories[0]].std()
-            st.markdown(f"**Stabilité**: {stability:.1f}%")
+            st.markdown(f"**Stability**: {stability:.1f}%")

@@ -35,9 +35,8 @@ st.title("📊 Analyse de Volleyball")
 with st.spinner("Chargement des données..."):
     players, players_df = load_data()
     
-    # Stocker les données des joueurs dans la session state pour qu'elles soient accessibles partout
     if 'players' not in st.session_state:
-        st.session_state['players'] = players  # Utiliser la même clé 'players' partout
+        st.session_state['players'] = players
         st.session_state['players_df'] = players_df
 
 # Initialisation des états de session
@@ -55,7 +54,6 @@ with st.sidebar:
     if players:
         st.write(f"📊 **{len(players)}** joueurs au total")
         
-        # Calcul du nombre de matchs
         all_match_ids = set()
         for player in players:
             if player.df is not None:
@@ -69,7 +67,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Navigation")
     
-    # Boutons de navigation
     nav_sections = {
         "Stats Globales": "🌐 Stats Globales",
         "Actions": "📈 Actions",
@@ -96,25 +93,21 @@ with st.sidebar:
         selected_skill = st.radio("Sélection d'action", skill_options, key="skill_radio", label_visibility="collapsed")
         st.session_state.active_item = selected_skill
         
-        # Filtres pour la section Actions
         st.markdown("---")
         st.subheader("Filtres")
         
         with st.container():
-            # Sélection du moment du set
             st.session_state.selected_moment = st.selectbox("Moment du set", SET_MOMENTS, key="moment_filter")
             
-            # Sélection des sets disponibles
             if players:
                 available_sets = sorted(set.union(*(set(p.df['set_number'].dropna().unique()) for p in players if p.df is not None)))
                 st.session_state.selected_sets = st.multiselect("Sets", options=available_sets, default=available_sets, key="sets_filter")
             
-            # Option pour épingler les sélections
             st.checkbox("Épingler les sélections", value=True, help="Garde les sélections de joueurs et de matchs visibles lors du défilement", key="pin_selections")
     
     # Sous-menu pour la section Stats Joueur
     elif st.session_state.active_section == "Stats Joueur":
-        player_options = ["Joueur", "Comparaison"]  # Options incluant la comparaison
+        player_options = ["Joueur", "Comparaison"]
         selected_player_view = st.radio("Vue", player_options, key="player_view_radio", label_visibility="collapsed")
         st.session_state.active_item = selected_player_view
 
@@ -123,7 +116,7 @@ selected_menu = st.session_state.active_item
 
 # Affichage selon l'onglet sélectionné
 if selected_menu == "Statistique globale":
-    global_stats_tab(st.session_state['players'])  # Utiliser les joueurs de la session state
+    global_stats_tab(st.session_state['players'])
 
 elif selected_menu in SKILL_TABS:
     config = SKILL_TABS[selected_menu]
@@ -149,6 +142,6 @@ elif selected_menu == "Joueur":
 
 elif selected_menu == "Comparaison":
     if st.session_state['players']:
-        make_comparison_tab(st.session_state['players'])  # Passer les joueurs de la session state
+        make_comparison_tab(st.session_state['players'])
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")

@@ -2,7 +2,6 @@ import os
 import glob
 import pandas as pd
 import streamlit as st
-import re
 from typing import Tuple, List, Dict, Set
 
 from player import Player
@@ -15,34 +14,24 @@ from filters import (
 
 @st.cache_data
 def load_data() -> Tuple[List[Player], pd.DataFrame]:
-    """
-    Charge les données des fichiers .dvw dans le dossier 'data' et crée les objets Player.
-    """
-    # Utiliser un chemin absolu basé sur le répertoire de l'application
+    """Loads .dvw file data and creates Player objects."""
     app_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(app_dir, 'data2')
+    data_dir = os.path.join(app_dir, 'data')
     file_paths = glob.glob(os.path.join(data_dir, '*.dvw'))
     
     if not file_paths:
-        st.error("Aucun fichier .dvw trouvé dans le dossier 'data'.")
+        st.error("No .dvw files found in the 'data' folder.")
         return [], pd.DataFrame()
 
-    # Chargement des fichiers DVW
     all_plays, all_players = _load_dvw_files(file_paths)
-    
-    # Création des objets Player
     players, players_df = _create_player_objects(all_plays, all_players)
-    
-    # Normalisation des noms d'équipe
     _normalize_team_names(players)
     
     return players, players_df
 
 
 def _load_dvw_files(file_paths: List[str]) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Charge tous les fichiers DVW et extrait les données de jeu et de joueurs.
-    """
+    """Loads all DVW files and extracts play and player data."""
     all_plays, all_players = pd.DataFrame(), pd.DataFrame()
 
     for path in file_paths:
@@ -56,91 +45,76 @@ def _load_dvw_files(file_paths: List[str]) -> Tuple[pd.DataFrame, pd.DataFrame]:
             all_plays = pd.concat([all_plays, df_plays], ignore_index=True)
             all_players = pd.concat([all_players, dv.get_players()], ignore_index=True)
         except Exception as e:
-            st.warning(f"Erreur lors du chargement du fichier {os.path.basename(path)}: {e}")
+            st.warning(f"Error loading file {os.path.basename(path)}: {e}")
 
-    # Réindexer all_plays pour avoir un index séquentiel
-    all_plays = all_plays.reset_index(drop=True)
-    
-    return all_plays, all_players
+    return all_plays.reset_index(drop=True), all_players
 
 
 def _create_player_objects(all_plays: pd.DataFrame, all_players: pd.DataFrame) -> Tuple[List[Player], pd.DataFrame]:
-    """
-    Crée les objets Player à partir des données chargées.
-    """
-    # Créer un dictionnaire pour stocker les actions par joueur
+    """Creates Player objects from loaded data."""
     players_actions = _index_actions_by_player(all_plays)
     
-    # Créer les objets Player
     players_df = all_players.drop_duplicates(subset=['player_id']).reset_index(drop=True)
     players = []
     
     for _, row in players_df.iterrows():
         player_id = row['player_id']
-        
-        # Récupérer les indices des actions du joueur
         indices = players_actions.get(player_id, [])
         
-        # Récupérer les actions du joueur et contextes (avant/après)
         player_actions = all_plays.loc[indices].copy() if indices else pd.DataFrame(columns=all_plays.columns)
         player_actions_prev, player_actions_next = _get_context_actions(indices, all_plays)
         
-        # Créer l'objet Player
         player = Player(
             id_=player_id,
-            first_name=row['name'],
-            last_name=row['lastname'],
+            first_name=row['name'].capitalize(),
+            last_name=row['lastname'].capitalize(),
             number=row['player_number'],
             df=player_actions,
-            df_prev=player_actions_prev,
-            df_next=player_actions_next,
-            team=re.sub(r'\d+', '', row.get('team', '')).lower().title()
+            df_previous_actions=player_actions_prev,
+            df_next_actions=player_actions_next,
+            team=_clean_team_name(row.get('team', ''))
         )
         players.append(player)
     
     return players, players_df
 
 
+def _clean_team_name(team_name: str) -> str:
+    """Cleans and formats a team name."""
+    import re
+    return re.sub(r'\d+', '', team_name).title().replace('_', '')
+
+
 def _index_actions_by_player(all_plays: pd.DataFrame) -> Dict[str, List[int]]:
-    """
-    Indexe les actions par joueur pour un accès rapide.
-    """
+    """Creates an index of actions by player ID for faster access."""
     players_actions = {}
     
     for idx, row in all_plays.iterrows():
         player_id = row['player_id']
         if player_id not in players_actions:
             players_actions[player_id] = []
-        
-        # Stocker l'index de l'action dans all_plays
         players_actions[player_id].append(idx)
     
     return players_actions
 
 
 def _get_context_actions(indices: List[int], all_plays: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Récupère les actions précédentes et suivantes pour les indices fournis.
-    """
-    # Créer les DataFrames pour les actions précédentes et suivantes
+    """Gets previous and next actions for the given indices."""
     player_actions_prev = pd.DataFrame(index=indices, columns=all_plays.columns)
     player_actions_next = pd.DataFrame(index=indices, columns=all_plays.columns)
     
-    # Pour chaque indice d'action du joueur, récupérer l'action précédente et suivante
     for idx in indices:
-        if idx > 0:  # S'il y a une action précédente
+        if idx > 0:
             player_actions_prev.loc[idx] = all_plays.loc[idx - 1]
         
-        if idx < len(all_plays) - 1:  # S'il y a une action suivante
+        if idx < len(all_plays) - 1:
             player_actions_next.loc[idx] = all_plays.loc[idx + 1]
     
     return player_actions_prev, player_actions_next
 
 
 def _normalize_team_names(players: List[Player]) -> None:
-    """
-    Normalise les noms d'équipe pour assurer la cohérence.
-    """
+    """Normalizes team names for consistency."""
     for p in players:
         if (p.team and is_team_france_avenir(p.team)) or p.team == "France Avenir 2024":
             p.team = "France Avenir"
@@ -149,9 +123,7 @@ def _normalize_team_names(players: List[Player]) -> None:
 
 
 def is_team_france_avenir(team_name: str) -> bool:
-    """
-    Vérifie si un nom d'équipe correspond à France Avenir avec diverses variations.
-    """
+    """Checks if a team name corresponds to France Avenir with variations."""
     if not team_name:
         return False
     team_name = team_name.lower()

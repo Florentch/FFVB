@@ -1,12 +1,12 @@
 """
-Configuration centrale pour l'application d'analyse de volleyball.
-Contient les mappings et configurations plus complexes.
-Les constantes simples ont été déplacées vers constants.py.
+Central configuration for the volleyball analysis application.
+Contains complex mappings and configurations.
+Simple constants have been moved to constants.py.
 """
 
 from constants import MIN_ACTIONS, DEFAULT_THRESHOLDS, SET_MOMENTS, MAIN_TEAM
 
-# Configuration des compétences et leurs évaluations
+# Skill evaluation mappings
 SKILL_EVAL_MAPPINGS = {
     "Reception": {
         '#': 'Parfaite',
@@ -58,7 +58,7 @@ SKILL_EVAL_MAPPINGS = {
     }
 }
 
-# Mapping des onglets de compétences pour l'interface utilisateur
+# Skill tabs mapping for UI
 SKILL_TABS = {
     "Réception": {"skill": "Reception", "label": "réceptions"},
     "Block": {"skill": "Block", "label": "blocks"},
@@ -68,7 +68,7 @@ SKILL_TABS = {
     "Passe": {"skill": "Set", "label": "passes"}
 }
 
-# Configuration des métriques à afficher par compétence
+# Display metrics configuration by skill
 SKILL_DISPLAY_METRICS = {
     "Attack": ["% Efficacité", "% Kill", "% /", "% Erreur"],
     "Serve": ["% Efficacité", "% Ace", "% Positif", "% Frequence","% Erreur"],
@@ -78,7 +78,7 @@ SKILL_DISPLAY_METRICS = {
     "Set": ["% Efficacité", "% Jouable", "% Faute", "% FSO", "% SO"]
 }
 
-# Dictionnaire définissant comment calculer l'efficacité pour chaque compétence
+# Efficiency calculation formulas
 EFFICIENCY_CALCULATION = {
     "Attack": {
         "formula": "positive_first - negative_last_two",
@@ -106,7 +106,7 @@ EFFICIENCY_CALCULATION = {
     }
 }
 
-# Dictionnaire définissant comment calculer les erreurs pour chaque compétence
+# Error calculation formulas
 ERROR_CALCULATION = {
     "Attack": "negative_last_two",  # (Faute + Contré) / Total
     "Serve": "negative_last",       # Faute / Total
@@ -116,7 +116,7 @@ ERROR_CALCULATION = {
     "Set": "negative_last"       # Faute / Total
 }
 
-# Configuration des métriques spéciales par compétence
+# Special metrics by skill
 SPECIAL_METRICS = {
     "Attack": {
         "% Kill": "symbols_first",
@@ -139,12 +139,12 @@ SPECIAL_METRICS = {
     "Set" : {
         "% Jouable": "symbols_specific['#'] + symbols_specific['+'] + symbols_specific['/'] + symbols_specific['!'] + symbols_specific['-']", 
         "% Faute" : "symbols_specific['=']",
-        "% FSO" : "", # % D'attaque juste après la recep puis passe qui correspond à un point
-        "% SO" : "" #  % De point gagné sur lorsque l'équipe est en reception
+        "% FSO" : "", # % of attack right after reception then pass that results in a point
+        "% SO" : "" # % of points won when the team is in reception
     }
 }
 
-# Couleurs pour chaque type de métrique (pour harmoniser les visualisations)
+# Colors for each metric type (for visualization consistency)
 METRIC_COLORS = {
     "% Kill": "green",
     "% Ace": "green",
@@ -153,31 +153,32 @@ METRIC_COLORS = {
     "% Erreur": "red"
 }
 
+# Set types mapping
 SET_TYPE = {
-    "K1" : "Fix Avant",
-    "K2" : "Fix Arrière",
-    "K7" : "K7 ?",
-    "KA" : "CONTRE ATT SANS FIX",
-    "KB" : "Réception en 2 - Fix Arrière",
-    "KC" : "Basket",
-    "KD" : "Réception en 4 - Fix Arrière",
-    "KE" : "Pas de premier temps",
-    "KF" : "Réception en 4 - 5",
-    "KI" : "KI ?",
-    "KJ" : "KJ ?",
-    "KK" : "Réception en 2 - Fix en poste",
-    "KL" : "FLOTTANTE",
-    "KM" : "Réception en 2 - Fix Avant",
-    "KN" : "Mauvaise réception centrée",
-    "KO" : "Réception en 2 - 1",
-    "KP" : "Réception en 4 - Fix Avant",
-    "KR" : "CONTRE ATT AV FIX", # Existe pas ? 
-    "KS" : "Réception en 4 - Tendue",
-    "KT" : "KT ?",
-    "KX" : "Réception en 2 - Tendue",
-    "K7" : "Tendu"    
+    "K1": "Fix Avant",
+    "K2": "Fix Arrière",
+    "K7": "Tendu",
+    "KA": "CONTRE ATT SANS FIX",
+    "KB": "Réception en 2 - Fix Arrière",
+    "KC": "Basket",
+    "KD": "Réception en 4 - Fix Arrière",
+    "KE": "Pas de premier temps",
+    "KF": "Réception en 4 - 5",
+    "KI": "KI",
+    "KJ": "KJ",
+    "KK": "Réception en 2 - Fix en poste",
+    "KL": "FLOTTANTE",
+    "KM": "Réception en 2 - Fix Avant",
+    "KN": "Mauvaise réception centrée",
+    "KO": "Réception en 2 - 1",
+    "KP": "Réception en 4 - Fix Avant",
+    "KR": "CONTRE ATT AV FIX",
+    "KS": "Réception en 4 - Tendue",
+    "KT": "KT",
+    "KX": "Réception en 2 - Tendue"
 }
 
+# Attack types mapping
 ATTACK_TYPE = {
     'CB': 'Basket Deux Doigts',
     'CD': 'Basket Tête',
@@ -212,4 +213,3 @@ ATTACK_TYPE = {
     'XR': 'Pipe 6-5',
     'XT': '4 Interval'
 }
-
