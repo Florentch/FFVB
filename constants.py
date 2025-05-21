@@ -29,3 +29,8 @@ SKILL_TRANSLATION = {
 }
 
 KEY_METRICS = ["% Efficacité", "% Kill", "% Erreur", "Total"]
+
+DEFAULT_FILTERS = {
+    'min_actions': 5,
+    'max_matches': 10
+}

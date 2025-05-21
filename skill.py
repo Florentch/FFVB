@@ -1,24 +1,25 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from collections import defaultdict
 from typing import List, Dict, Optional, Union, Tuple
 
 from utils import player_selector, team_selector, get_match_selector, display_in_area
 from visualizations import create_bar_chart, create_pie_chart, create_team_pie_charts
 from config import SKILL_DISPLAY_METRICS
-from constants import MIN_ACTIONS
+from constants import MIN_ACTIONS, KEY_METRICS
 from player import Player
+from filters import filter_players_by_criteria
+from ui_utils import display_warning_if_empty
 
 
 def skill_comparison_tab(players: List[Player], skill: str, label: str = "réceptions", categories: Optional[List[str]] = None) -> None:
+    """Main function to create a tab for analyzing specific volleyball skills across players and teams."""
     st.header(f"📥 Analyse des {label}")
 
-    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+    specific_categories = categories or SKILL_DISPLAY_METRICS.get(skill, KEY_METRICS[:2])
     
-    players_with_data = filter_players_with_data(players, skill)
-    if not players_with_data:
-        st.warning(f"Aucun joueur avec des données de {label} trouvées.")
+    players_with_data = filter_players_by_criteria(players, MIN_ACTIONS, skill)
+    if display_warning_if_empty(players_with_data, f"Aucun joueur avec des données de {label} trouvées."):
         return
 
     mode = setup_comparison_mode_selector()
@@ -38,32 +39,30 @@ def skill_comparison_tab(players: List[Player], skill: str, label: str = "récep
 
 
 def show_comparison_by_mode(mode: str, players: List[Player], selected_matches: List[str], moment: str, set_filter: Optional[Union[int, List[int]]], skill: str, label: str, categories: List[str]) -> None:
+    """Displays either player or team comparisons based on selected mode."""
     if mode == "Par Joueurs":
         show_player_comparison(players, selected_matches, moment, set_filter, skill, label, categories)
     else:
         show_team_comparison(players, selected_matches, moment, set_filter, skill, label, categories)
 
 
-def filter_players_with_data(players: List[Player], skill: str) -> List[Player]:
-    return [p for p in players if len(p.get_action_df(skill)) > MIN_ACTIONS]
-
-
 def setup_comparison_mode_selector() -> str:
+    """Creates UI selector for comparison mode (players vs teams)."""
     is_pinned = st.session_state.get('pin_selections', True)
     
-    if not is_pinned:
-        col1, col2 = st.columns(2)
-        with col1:
-            mode = st.radio("Mode de comparaison", ["Par Joueurs", "Par Équipes"], 
-                           horizontal=True, label_visibility="visible")
-    else:
-        mode = st.sidebar.radio("Mode de comparaison", ["Par Joueurs", "Par Équipes"], 
-                               horizontal=True, label_visibility="visible")
+    area_func = st.sidebar if is_pinned else st
+    mode = area_func.radio(
+        "Mode de comparaison", 
+        ["Par Joueurs", "Par Équipes"], 
+        horizontal=True, 
+        label_visibility="visible"
+    )
     
     return mode
 
 
 def show_player_comparison(players_with_data: List[Player], selected_matches: List[str], moment: str, set_filter: Optional[Union[int, List[int]]], skill: str, label: str, categories: List[str]) -> None:
+    """Creates comparison view for players' performance in a specific skill."""
     df = player_selector(players_with_data, skill, moment, selected_matches, set_filter)
     if df is None or df.empty:
         return
@@ -72,6 +71,7 @@ def show_player_comparison(players_with_data: List[Player], selected_matches: Li
 
 
 def show_team_comparison(players_with_data: List[Player], selected_matches: List[str], moment: str, set_filter: Optional[Union[int, List[int]]], skill: str, label: str, categories: List[str]) -> None:
+    """Creates comparison view for teams' performance in a specific skill."""
     df = team_selector(players_with_data, skill, moment, selected_matches, set_filter)
     if df is None or df.empty:
         return
@@ -80,21 +80,17 @@ def show_team_comparison(players_with_data: List[Player], selected_matches: List
 
 
 def display_player_stats(players: List[Player], selected_matches: List[str], moment: str, set_filter: Optional[Union[int, List[int]]], skill: str, label: str, categories: List[str], df: pd.DataFrame) -> None:
-    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
-    
+    """Displays detailed statistics and visualizations for individual players' performance."""
     st.dataframe(df.set_index("Name"), use_container_width=True)
     
-    fig = create_player_bar_chart(df, specific_categories)
+    fig = create_bar_chart(df, categories)
     st.plotly_chart(fig, use_container_width=True)
     
-    display_player_ranking(df, specific_categories, skill)
-
-
-def create_player_bar_chart(df: pd.DataFrame, categories: List[str]) -> go.Figure:
-    return create_bar_chart(df, categories)
+    display_player_ranking(df, categories, skill)
 
 
 def display_player_ranking(df: pd.DataFrame, categories: List[str], skill: str) -> None:
+    """Displays a ranking table of players based on their performance in a specific skill."""
     main_metric = "% Efficacité"
     data = df.to_dict('records')
     
@@ -102,7 +98,7 @@ def display_player_ranking(df: pd.DataFrame, categories: List[str], skill: str) 
         classement = sorted(data, key=lambda x: -x.get(main_metric, 0))
         st.subheader(f"🏆 Classement : {main_metric}")
         
-        specific_metrics = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
+        specific_metrics = SKILL_DISPLAY_METRICS.get(skill, KEY_METRICS[:2])
         
         columns_to_show = ["Name", "Team", main_metric]
         
@@ -122,8 +118,7 @@ def display_player_ranking(df: pd.DataFrame, categories: List[str], skill: str) 
 
 
 def display_team_stats(df: pd.DataFrame, skill: str, label: str, categories: List[str]) -> None:
-    specific_categories = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité", "% Erreur"])
-    
+    """Displays detailed statistics and visualizations for teams' performance."""
     st.subheader("📊 Statistiques moyennes par équipe")
 
     display_df = df.copy()
@@ -134,8 +129,4 @@ def display_team_stats(df: pd.DataFrame, skill: str, label: str, categories: Lis
 
     st.dataframe(display_df.set_index("Team"), use_container_width=True)
 
-    display_team_pie_charts(df, specific_categories, label)
-
-
-def display_team_pie_charts(df: pd.DataFrame, categories: List[str], label: str) -> None:
     create_team_pie_charts(df, categories, label)

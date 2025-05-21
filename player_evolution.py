@@ -12,7 +12,6 @@ def player_evolution_tab(players: list) -> None:
     """Displays the player performance evolution tab."""
     st.header("📈 Évolution des Performances")
 
-    # Filter for France Avenir players with data
     players_with_data = [p for p in players if len(p.df) > 0 if is_team_france_avenir(p.team)]
 
     if not players_with_data:
@@ -49,7 +48,6 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
     2. Allows selection of matches to analyze
     3. Displays evolution charts and statistics
     """
-    # Get skill data for player and moment
     df_skill = player.get_action_df(skill, moment)
     match_ids = df_skill['match_id'].dropna().unique()
 
@@ -57,7 +55,6 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
         st.warning(f"Aucun match avec des actions '{skill}' trouvé pour {player.first_name} {player.last_name}.")
         return
 
-    # Prepare match data for display
     match_data = []
     for match_id in match_ids:
         match_rows = player.df[player.df['match_id'] == match_id]
@@ -83,7 +80,6 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
     match_options = matches_df['match_id'].tolist()
     match_labels = {m_id: f"{row['match_label']} - {row['match_day']}" for m_id, row in zip(matches_df['match_id'], matches_df.to_dict('records'))}
 
-    # Select matches via utility function
     selected_matches = display_in_area(st.multiselect,
                                       "Sélectionner les matchs à analyser",
                                       options=match_options,
@@ -94,10 +90,8 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
         st.info("Veuillez sélectionner au moins un match pour voir l'évolution.")
         return
 
-    # Filter and sort selected matches
     filtered_matches = matches_df[matches_df['match_id'].isin(selected_matches)].sort_values('match_date')
     
-    # Get statistics for each match
     stats_by_match = []
     for _, row in filtered_matches.iterrows():
         match_id = row['match_id']
@@ -118,17 +112,13 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
 
     stats_df = pd.DataFrame(stats_by_match)
 
-    # Display raw data in expander
     with st.expander("Voir les données brutes"):
         st.dataframe(stats_df)
 
-    # Get first category for selected skill
     target_label = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])[0]  # Take first defined metric
 
-    # Default target from config
     target_default = DEFAULT_THRESHOLDS.get(skill, 25)  # 25% default if not specified
-    
-    # Slider to define target
+
     target = display_in_area(st.slider, 
                             f"Objectif {target_label}", 
                             min_value=0, 
@@ -136,13 +126,10 @@ def display_player_evolution(player: Player, moment: str, skill: str) -> None:
                             value=target_default, 
                             step=5)
 
-    # Create analysis charts
     create_evolution_chart(stats_df, target, skill)
 
-    # Display global statistics
     display_global_stats(player, skill, moment, selected_matches, target, target_label)
 
-    # Detailed analysis with radar chart
     st.subheader("🔍 Analyse détaillée")
     create_radar_chart(stats_df, skill)
 

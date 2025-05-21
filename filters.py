@@ -221,11 +221,10 @@ def team_selector(players: list, skill: str, moment: str, selected_matches: list
     return pd.DataFrame(data)
 
 def filter_players_by_criteria(players: list, min_actions: int = 5, skill: str = None) -> list:
-    """Filters players based on various criteria"""
+    """Filters players based on various criteria"""        
     if skill:
         return [p for p in players if len(p.get_action_df(skill)) > min_actions]
         
-    # Filter on all main skills
     all_skills = ['Reception', 'Block', 'Serve', 'Attack', 'Dig']
     return [p for p in players if sum(len(p.get_action_df(s)) for s in all_skills) > min_actions]
 

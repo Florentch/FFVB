@@ -6,6 +6,25 @@ Simple constants have been moved to constants.py.
 
 from constants import MIN_ACTIONS, DEFAULT_THRESHOLDS, SET_MOMENTS, MAIN_TEAM
 
+STYLE_CONSTANTS = {
+    "BG_TEAM": "lightyellow",
+    "BG_BEST": "lightgreen",
+    "BG_WORST": "salmon",
+    "COLOR_BEST": "darkgreen",
+    "COLOR_WORST": "darkred",
+    "COLOR_NEUTRAL": "black"
+}
+
+PLAYER_CARD_CONFIG = {
+    'main_metrics': ['% Efficacité', 'Total Actions'],
+    'min_actions_threshold': 5
+}
+
+COMPARISON_VIEW_CONFIG = {
+    'default_skills': ['Attack', 'Serve', 'Reception'],
+    'chart_colors': ['#1f77b4', '#ff7f0e']
+}
+
 # Skill evaluation mappings
 SKILL_EVAL_MAPPINGS = {
     "Reception": {

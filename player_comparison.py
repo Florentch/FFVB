@@ -9,9 +9,11 @@ from ui_utils import display_table_with_title, create_tab_section
 from constants import SKILL_TRANSLATION, KEY_METRICS
 
 def translate_skill(skill: str) -> str:
+    """Translates skill name from internal format to display format."""
     return SKILL_TRANSLATION.get(skill, skill)
 
 def get_skill_counts(player: Player, skills: list, set_moment: str, match_filter: list, set_filter: list) -> dict:
+    """Computes the count of actions for each skill for a given player with filters applied."""
     skill_counts = {}
     for skill in skills:
         try:
@@ -22,6 +24,7 @@ def get_skill_counts(player: Player, skills: list, set_moment: str, match_filter
     return skill_counts
 
 def display_player_card(player: Player, selected_skills: list = None, set_moment: str = None, match_filter: list = None, set_filter: list = None) -> None:
+    """Renders a player information card with basic stats and counts."""
     card_style = """
     <style>
     .player-card {
@@ -51,6 +54,7 @@ def display_player_card(player: Player, selected_skills: list = None, set_moment
         st.markdown("</div>", unsafe_allow_html=True)
 
 def get_filtered_players(players: list, selected_skills: list, set_moment: str, match_filter: list, set_filter: list, min_actions: int = 0) -> list:
+    """Filters players who have sufficient data for the selected skills and filters."""
     filtered_players = []
     for player in players:
         for skill in selected_skills:
@@ -68,6 +72,7 @@ def get_filtered_players(players: list, selected_skills: list, set_moment: str, 
     return filtered_players
 
 def get_players_for_comparison(filtered_players: list) -> dict:
+    """Organizes players by team and creates a mapping of display names to player objects."""
     teams = {}
     seen_names = set()
     
@@ -92,6 +97,7 @@ def get_players_for_comparison(filtered_players: list) -> dict:
     return {name: player for name, player in player_list}
 
 def generate_comparison_data(player1: Player, player2: Player, skills: list, set_moment: str, match_filter: list, set_filter: list, min_actions: int = 0) -> dict:
+    """Generates detailed comparison statistics between two players across multiple skills."""
     comparison_data = {}
     for skill in skills:
         try:
@@ -135,6 +141,7 @@ def generate_comparison_data(player1: Player, player2: Player, skills: list, set
     return comparison_data
 
 def display_radar_comparison(comparison_data: dict, player1: Player, player2: Player) -> None:
+    """Creates radar charts comparing players across multiple skills and metrics."""
     if not comparison_data:
         st.info("Pas assez de données pour créer un graphique radar.")
         return
@@ -188,6 +195,7 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                 st.plotly_chart(fig, use_container_width=True)
 
 def display_bar_comparison(comparison_data: dict, player1: Player, player2: Player, selected_skills: list) -> None:
+    """Creates bar charts comparing player metrics for each selected skill."""
     if not comparison_data:
         st.info("Pas assez de données pour créer les graphiques à barres.")
         return
@@ -238,6 +246,7 @@ def display_bar_comparison(comparison_data: dict, player1: Player, player2: Play
         st.plotly_chart(fig, use_container_width=True)
 
 def display_table_comparison(comparison_data: dict) -> None:
+    """Displays a tabular comparison of players' metrics across skills."""
     if not comparison_data:
         st.info("Pas assez de données pour créer le tableau comparatif.")
         return
@@ -274,6 +283,7 @@ def display_table_comparison(comparison_data: dict) -> None:
         )
 
 def display_face_to_face_comparison(comparison_data: dict, player1: Player, player2: Player) -> None:
+    """Creates a side-by-side comparison view highlighting key metrics between players."""
     if not comparison_data:
         st.info("Pas assez de données pour créer la visualisation face à face.")
         return
@@ -320,6 +330,7 @@ def display_face_to_face_comparison(comparison_data: dict, player1: Player, play
         st.markdown("---")
 
 def display_comparison_tabs(comparison_data: dict, player1: Player, player2: Player, selected_skills: list) -> None:
+    """Creates a tabbed interface for different comparison visualizations."""
     tabs_data = {
         "Radar": lambda: display_radar_comparison(comparison_data, player1, player2),
         "Barres": lambda: display_bar_comparison(comparison_data, player1, player2, selected_skills),
@@ -330,6 +341,7 @@ def display_comparison_tabs(comparison_data: dict, player1: Player, player2: Pla
     create_tab_section(tabs_data)
 
 def init_session_state() -> None:
+    """Initializes the session state variables for comparison filters and selections."""
     if 'comparison_set_filter' not in st.session_state:
         st.session_state.comparison_set_filter = [str(i) for i in range(1, 6)]
     
@@ -346,6 +358,7 @@ def init_session_state() -> None:
         st.session_state.comparison_player2_option = None
 
 def make_comparison_tab(players: list) -> None:
+    """Main function to create the player comparison interface with all controls and visualizations."""
     st.title("🔍 Comparaison de Joueurs")
 
     if not isinstance(players, list) or len(players) == 0:

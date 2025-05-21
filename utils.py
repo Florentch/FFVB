@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import pandas as pd
 import streamlit as st
@@ -81,7 +82,6 @@ def _create_player_objects(all_plays: pd.DataFrame, all_players: pd.DataFrame) -
 
 def _clean_team_name(team_name: str) -> str:
     """Cleans and formats a team name."""
-    import re
     return re.sub(r'\d+', '', team_name).title().replace('_', '')
 
 
@@ -118,8 +118,8 @@ def _normalize_team_names(players: List[Player]) -> None:
     for p in players:
         if (p.team and is_team_france_avenir(p.team)) or p.team == "France Avenir 2024":
             p.team = "France Avenir"
-        elif p.team == 'Ajaccio_':
-            p.team = 'Ajaccio'
+        else:
+            p.team = p.team.replace('�', 'é')
 
 
 def is_team_france_avenir(team_name: str) -> bool:
