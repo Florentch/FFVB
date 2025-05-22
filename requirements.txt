@@ -4,3 +4,4 @@ numpy==1.26.0
 plotly==6.0.1
 pydatavolley==2.3
 disutils==1.4.32.post2
+streamlit-extras==0.7.1
