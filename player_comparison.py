@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from typing import List, Dict, Optional, Union, Tuple
 
 from player import Player
 from filters import get_match_selector, filter_players_with_data, unique_preserve_order
@@ -140,7 +141,7 @@ def generate_comparison_data(player1: Player, player2: Player, skills: list, set
             st.error(f"Erreur lors de la génération des données pour {skill}: {e}")
     return comparison_data
 
-def display_radar_comparison(comparison_data: dict, player1: Player, player2: Player) -> None:
+def display_radar_comparison(comparison_data: dict, player1: Player, player2: Player, best_players: dict = None) -> None:
     """Creates radar charts comparing players across multiple skills and metrics."""
     if not comparison_data:
         st.info("Pas assez de données pour créer un graphique radar.")
@@ -156,12 +157,28 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                 "player2": {"r": [], "theta": []}
             }
             
+            # Ajouter les données du meilleur joueur si demandé
+            if best_players:
+                player_data["best"] = {"r": [], "theta": []}
+            
             for skill in skills:
                 skill_data = comparison_data[skill]
                 if metric in skill_data["metrics"]:
                     for player_key in ["player1", "player2"]:
                         player_data[player_key]["theta"].append(skill)
                         player_data[player_key]["r"].append(skill_data["metrics"][metric][player_key])
+                    
+                    # Ajouter les données du meilleur joueur pour cette compétence
+                    if best_players and skill in best_players:
+                        best_player = best_players[skill]
+                        best_stats = best_player.get_skill_stats(skill, 
+                                                               st.session_state.comparison_moment_filter if st.session_state.comparison_moment_filter != "Tout" else None, 
+                                                               st.session_state.match_filter, 
+                                                               st.session_state.comparison_set_filter)
+                        
+                        if metric in best_stats:
+                            player_data["best"]["theta"].append(skill)
+                            player_data["best"]["r"].append(best_stats[metric])
             
             if player_data["player1"]["r"] and player_data["player2"]["r"]:
                 fig = go.Figure()
@@ -180,12 +197,26 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                     name=f"{player2.get_full_name()} ({player2.team})"
                 ))
                 
+                # Ajouter la trace du meilleur joueur si demandé
+                if best_players and player_data["best"]["r"]:
+                    fig.add_trace(go.Scatterpolar(
+                        r=player_data["best"]["r"],
+                        theta=player_data["best"]["theta"],
+                        fill='toself',
+                        name="Meilleur joueur",
+                        line=dict(color='gold', width=2),
+                        marker=dict(color='gold')
+                    ))
+                
                 fig.update_layout(
                     polar=dict(
                         radialaxis=dict(
                             visible=True,
-                            range=[0, max(max(player_data["player1"]["r"] or [0]), 
-                                         max(player_data["player2"]["r"] or [0])) * 1.1]
+                            range=[0, max(
+                                max(player_data["player1"]["r"] or [0]), 
+                                max(player_data["player2"]["r"] or [0]),
+                                max(player_data.get("best", {"r": [0]})["r"] or [0])
+                            ) * 1.1]
                         )
                     ),
                     title=f"Comparaison - {metric}",
@@ -194,7 +225,7 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                 
                 st.plotly_chart(fig, use_container_width=True)
 
-def display_bar_comparison(comparison_data: dict, player1: Player, player2: Player, selected_skills: list) -> None:
+def display_bar_comparison(comparison_data: dict, player1: Player, player2: Player, selected_skills: list, best_players: dict = None) -> None:
     """Creates bar charts comparing player metrics for each selected skill."""
     if not comparison_data:
         st.info("Pas assez de données pour créer les graphiques à barres.")
@@ -229,6 +260,23 @@ def display_bar_comparison(comparison_data: dict, player1: Player, player2: Play
             marker_color='firebrick'
         ))
         
+        # Ajouter le meilleur joueur si demandé
+        if best_players and skill in best_players:
+            best_player = best_players[skill]
+            best_stats = best_player.get_skill_stats(skill, 
+                                                   st.session_state.comparison_moment_filter if st.session_state.comparison_moment_filter != "Tout" else None, 
+                                                   st.session_state.match_filter, 
+                                                   st.session_state.comparison_set_filter)
+            
+            values_best = [best_stats.get(m, 0) for m in metrics]
+            
+            fig.add_trace(go.Bar(
+                x=metrics,
+                y=values_best,
+                name="Meilleur joueur",
+                marker_color='gold'
+            ))
+        
         skill_name = translate_skill(skill)
         
         fig.update_layout(
@@ -245,7 +293,7 @@ def display_bar_comparison(comparison_data: dict, player1: Player, player2: Play
         
         st.plotly_chart(fig, use_container_width=True)
 
-def display_table_comparison(comparison_data: dict) -> None:
+def display_table_comparison(comparison_data: dict, best_players: dict = None) -> None:
     """Displays a tabular comparison of players' metrics across skills."""
     if not comparison_data:
         st.info("Pas assez de données pour créer le tableau comparatif.")
@@ -260,13 +308,26 @@ def display_table_comparison(comparison_data: dict) -> None:
             if metric == "Total":
                 continue
                 
-            table_data.append({
+            row_data = {
                 "Compétence": skill_name,
                 "Métrique": metric,
                 f"{data['player1_name']} ({data['player1_team']})": values["player1"],
                 f"{data['player2_name']} ({data['player2_team']})": values["player2"],
                 "Différence": values["diff"]
-            })
+            }
+            
+            # Ajouter les données du meilleur joueur si disponible
+            if best_players and skill in best_players:
+                best_player = best_players[skill]
+                best_stats = best_player.get_skill_stats(skill, 
+                                                       st.session_state.comparison_moment_filter if st.session_state.comparison_moment_filter != "Tout" else None, 
+                                                       st.session_state.match_filter, 
+                                                       st.session_state.comparison_set_filter)
+                
+                if metric in best_stats:
+                    row_data["Meilleur joueur"] = best_stats[metric]
+            
+            table_data.append(row_data)
     
     if table_data:
         df = pd.DataFrame(table_data)
@@ -282,7 +343,7 @@ def display_table_comparison(comparison_data: dict) -> None:
             use_container_width=True
         )
 
-def display_face_to_face_comparison(comparison_data: dict, player1: Player, player2: Player) -> None:
+def display_face_to_face_comparison(comparison_data: dict, player1: Player, player2: Player, best_players: dict = None) -> None:
     """Creates a side-by-side comparison view highlighting key metrics between players."""
     if not comparison_data:
         st.info("Pas assez de données pour créer la visualisation face à face.")
@@ -296,18 +357,35 @@ def display_face_to_face_comparison(comparison_data: dict, player1: Player, play
         
         st.markdown(f"### Comparaison - {skill_name}")
         
-        col1, col2, col3 = st.columns([2, 1, 2])
-        
-        player_cols = [col1, col3]
-        player_names = [player1_name, player2_name]
-        player_keys = ["player1", "player2"]
+        # Ajuster la mise en page en fonction de la présence du meilleur joueur
+        if best_players and skill in best_players:
+            col1, col2, col3, col4 = st.columns([2, 1, 2, 2])
+            player_cols = [col1, col3, col4]
+            player_names = [player1_name, player2_name, "Meilleur joueur"]
+            player_keys = ["player1", "player2", "best"]
+            
+            # Préparer les données du meilleur joueur
+            best_player = best_players[skill]
+            best_stats = best_player.get_skill_stats(skill, 
+                                                  st.session_state.comparison_moment_filter if st.session_state.comparison_moment_filter != "Tout" else None, 
+                                                  st.session_state.match_filter, 
+                                                  st.session_state.comparison_set_filter)
+        else:
+            col1, col2, col3 = st.columns([2, 1, 2])
+            player_cols = [col1, col3]
+            player_names = [player1_name, player2_name]
+            player_keys = ["player1", "player2"]
         
         for idx, (col, name, key) in enumerate(zip(player_cols, player_names, player_keys)):
             with col:
                 st.markdown(f"#### {name}")
                 for metric in KEY_METRICS:
                     if metric in data["metrics"]:
-                        value = data["metrics"][metric][key]
+                        if key == "best":
+                            value = best_stats.get(metric, 0)
+                        else:
+                            value = data["metrics"][metric][key]
+                            
                         if metric == "Total":
                             st.metric(metric, int(value))
                         else:
@@ -329,13 +407,13 @@ def display_face_to_face_comparison(comparison_data: dict, player1: Player, play
         
         st.markdown("---")
 
-def display_comparison_tabs(comparison_data: dict, player1: Player, player2: Player, selected_skills: list) -> None:
+def display_comparison_tabs(comparison_data: dict, player1: Player, player2: Player, selected_skills: list, best_players: dict = None) -> None:
     """Creates a tabbed interface for different comparison visualizations."""
     tabs_data = {
-        "Radar": lambda: display_radar_comparison(comparison_data, player1, player2),
-        "Barres": lambda: display_bar_comparison(comparison_data, player1, player2, selected_skills),
-        "Tableau": lambda: display_table_comparison(comparison_data),
-        "Face à Face": lambda: display_face_to_face_comparison(comparison_data, player1, player2)
+        "Radar": lambda: display_radar_comparison(comparison_data, player1, player2, best_players),
+        "Barres": lambda: display_bar_comparison(comparison_data, player1, player2, selected_skills, best_players),
+        "Tableau": lambda: display_table_comparison(comparison_data, best_players),
+        "Face à Face": lambda: display_face_to_face_comparison(comparison_data, player1, player2, best_players)
     }
     
     create_tab_section(tabs_data)
@@ -356,6 +434,24 @@ def init_session_state() -> None:
     
     if 'comparison_player2_option' not in st.session_state:
         st.session_state.comparison_player2_option = None
+        
+    if 'show_best_player' not in st.session_state:
+        st.session_state.show_best_player = False
+
+def get_best_player_for_skills(players: list, selected_skills: list, set_moment: str, match_filter: list, set_filter: list, min_actions: int = 10) -> Dict[str, Player]:
+    """Returns the best player for each selected skill based on efficiency and error rate."""
+    best_players = {}
+    
+    for skill in selected_skills:
+        # Utiliser la méthode existante pour trouver les meilleurs joueurs par compétence
+        best_player_data = Player.get_best_players_by_skill(
+            players, skill, set_moment, match_filter, set_filter, min_actions
+        )
+        
+        if best_player_data:
+            best_players[skill] = best_player_data['player']
+    
+    return best_players
 
 def make_comparison_tab(players: list) -> None:
     """Main function to create the player comparison interface with all controls and visualizations."""
@@ -365,25 +461,20 @@ def make_comparison_tab(players: list) -> None:
         st.error("Aucune donnée de joueur disponible.")
         return
 
-    # Initialize session state
     init_session_state()
 
-    # Available skills
     skills = ["Attack", "Block", "Serve", "Reception", "Dig", "Set"]
 
-    # Layout for filters and player selection
     col1, col2 = st.columns([1, 2])
 
     with col1:
         st.subheader("Filtres")
 
-        # Match selection
         selected_matches = get_match_selector(players)
         if not selected_matches:
             st.warning("⚠️ Veuillez sélectionner au moins un match.")
             return
 
-        # Set filters
         available_sets = [str(i) for i in range(1, 6)]  # Sets 1 to 5
         set_filter = st.multiselect(
             "Filtrer par set", 
@@ -394,12 +485,10 @@ def make_comparison_tab(players: list) -> None:
         )
         st.session_state.comparison_set_filter = set_filter
         
-        # Use None if no sets selected
         if not set_filter:
             set_filter = None
             st.info("Aucun set sélectionné, utilisation de tous les sets.")
 
-        # Set moment filter
         moment_filter_options = ["Tout", "0-10", "10-20", "20+"]
         moment_filter = st.selectbox(
             "Phase du set", 
@@ -411,7 +500,13 @@ def make_comparison_tab(players: list) -> None:
         
         set_moment = None if moment_filter == "Tout" else moment_filter
 
-        # Skill selection
+        show_best_player = st.checkbox(
+            "Afficher le meilleur joueur pour comparaison",
+            value=st.session_state.show_best_player,
+            help="Affiche les statistiques du meilleur joueur pour chaque compétence sélectionnée"
+        )
+        st.session_state.show_best_player = show_best_player
+
         selected_skills = st.multiselect(
             "Compétences à comparer", 
             options=skills, 
@@ -490,6 +585,24 @@ def make_comparison_tab(players: list) -> None:
     if not comparison_data:
         st.warning("Pas assez de données pour cette comparaison avec les filtres sélectionnés.")
         return
-
+    
+    # Sauvegarder match_filter dans session_state pour accès dans d'autres fonctions
+    st.session_state.match_filter = selected_matches
+    
+    # Obtenir les meilleurs joueurs si l'option est activée
+    best_players = None
+    if st.session_state.show_best_player:
+        best_players = get_best_player_for_skills(
+            filtered_players, selected_skills, set_moment, selected_matches, set_filter, min_actions=100
+        )
+        
+        if best_players:
+            st.subheader("🏆 Meilleurs joueurs par compétence")
+            for skill, player in best_players.items():
+                skill_stats = player.get_skill_stats(skill, set_moment, selected_matches, set_filter)
+                st.markdown(f"**{translate_skill(skill)}**: {player.get_full_name()} ({player.team}) - "
+                           f"Efficacité: {skill_stats.get('% Efficacité', 0):.1f}%, "
+                           f"Erreur: {skill_stats.get('% Erreur', 0):.1f}%")
+    
     st.subheader("Comparaison détaillée")
-    display_comparison_tabs(comparison_data, player1, player2, selected_skills)
+    display_comparison_tabs(comparison_data, player1, player2, selected_skills, best_players)

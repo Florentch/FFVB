@@ -9,6 +9,7 @@ from player_evolution import player_evolution_tab
 from player_comparison import make_comparison_tab 
 from set_skill import set_tab
 from stat_global import global_stats_tab
+from about import about_tab
 from config import SKILL_EVAL_MAPPINGS, SKILL_TABS, SET_MOMENTS
 
 
@@ -28,8 +29,6 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
-
-st.title("📊 Analyse de Volleyball")
 
 # Chargement des données
 with st.spinner("Chargement des données..."):
@@ -70,7 +69,8 @@ with st.sidebar:
     nav_sections = {
         "Stats Globales": "🌐 Stats Globales",
         "Actions": "📈 Actions",
-        "Stats Joueur": "👤 Stats Joueur"
+        "Stats Joueur": "👤 Stats Joueur",
+        "À propos": "ℹ️ À propos"
     }
     
     for section_id, section_label in nav_sections.items():
@@ -86,6 +86,8 @@ with st.sidebar:
                 st.session_state.active_item = list(SKILL_TABS.keys())[0] if SKILL_TABS else None
             elif section_id == "Stats Joueur":
                 st.session_state.active_item = "Joueur"
+            elif section_id == "À propos":
+                st.session_state.active_item = "À propos"
     
     # Sous-menu pour la section Actions
     if st.session_state.active_section == "Actions":
@@ -145,3 +147,6 @@ elif selected_menu == "Comparaison":
         make_comparison_tab(st.session_state['players'])
     else:
         st.warning("Aucune donnée disponible pour l'analyse.")
+
+elif selected_menu == "À propos":
+    about_tab()

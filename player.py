@@ -369,8 +369,6 @@ class Player:
         return valid_players[0]
 
 
-# Utility functions
-
 def _calculate_efficiency_numerator(symbols_data: Dict[str, Union[int, Dict[str, int]]], formula: str) -> int:
     """Calculate the numerator for the efficiency formula."""
     if formula == "positive_first - negative_last_two":
