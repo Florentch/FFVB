@@ -16,7 +16,13 @@ DEFAULT_THRESHOLDS = {
     "Block": 20,
     "Attack": 30,
     "Dig": 35,
-    "Serve": 25
+    "Serve": 25,
+    # Seuils d'erreur (à ne pas dépasser)
+    "Reception_Error": 10,
+    "Block_Error": 15,
+    "Attack_Error": 20,
+    "Dig_Error": 15,
+    "Serve_Error": 12
 }
 
 SKILL_TRANSLATION = {

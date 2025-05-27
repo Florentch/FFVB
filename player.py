@@ -295,6 +295,9 @@ class Player:
         
         if set_type != "Tous" and 'set_code' in df.columns:
             df = df[df['set_code'] == set_type]
+   
+        if attack_type != "Tous" and skill == "Attack" and 'attack_code' in df.columns:
+            df = df[df['attack_code'] == attack_type]
         
         if attack_type != "Tous" and skill == "Set" and self.df_next_actions is not None:
             valid_indices = []

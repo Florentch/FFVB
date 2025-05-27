@@ -128,3 +128,40 @@ def is_team_france_avenir(team_name: str) -> bool:
         return False
     team_name = team_name.lower()
     return team_name == "france avenir" or ("france" in team_name and "avenir" in team_name)
+
+def reorder_dataframe_columns(df: pd.DataFrame, base_columns: List[str] = None) -> pd.DataFrame:
+    """Réorganise les colonnes du DataFrame dans l'ordre souhaité."""
+    if df.empty:
+        return df
+
+    if base_columns is None:
+        base_columns = ["Name", "Team", "Total"]
+
+    priority_columns = ["% Efficacité", "% Erreur"]
+
+    other_percentage_columns = []
+
+    absolute_columns = []
+    
+    for col in df.columns:
+        if col not in base_columns + priority_columns:
+            if col.startswith("% "):
+                other_percentage_columns.append(col)
+            else:
+                absolute_columns.append(col)
+
+    other_percentage_columns = sorted(other_percentage_columns)
+
+    def sort_absolute_columns(cols):
+        priority_order = ["Parfaite", "Positive"]
+        priority_cols = [col for col in priority_order if col in cols]
+        other_cols = sorted([col for col in cols if col not in priority_order])
+        return priority_cols + other_cols
+    
+    absolute_columns = sort_absolute_columns(absolute_columns)
+
+    final_order = base_columns + priority_columns + other_percentage_columns + absolute_columns
+
+    final_order = [col for col in final_order if col in df.columns]
+    
+    return df[final_order]

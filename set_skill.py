@@ -6,13 +6,14 @@ from utils import player_selector, get_match_selector
 from constants import MIN_SET
 from config import SET_TYPE, ATTACK_TYPE
 from ui_utils import display_table_with_title, display_warning_if_empty
-from filters import unique_preserve_order, create_selector
+from filters import (unique_preserve_order, create_selector, get_all_codes_from_column, 
+    get_display_name_from_mapping, get_all_attack_codes_from_next_actions, create_type_filter_selector)
 from player import Player
 
 
 def set_tab(players: List[Player]) -> None:
     """Displays the pass analysis tab."""
-    st.header("🏐 Analyse des passes")
+    st.header("Analyse des passes")
     
     passeurs = [p for p in players if len(p.get_action_df("Set")) > MIN_SET]
     
@@ -87,61 +88,24 @@ def select_passeurs(passeurs: List[Player]) -> List[Player]:
     
     return [passeur_dict[name] for name in selected_names]
 
-
-def create_type_selector(type_key: str, label: str, display_options: List[str], display_to_code_map: Dict[str, str]) -> Tuple[str, str]: 
-    """Creates a generic type selector (set or attack)."""
-    if f'selected_{type_key}_display' not in st.session_state:
-        st.session_state[f'selected_{type_key}_display'] = "Tous"
-        st.session_state[f'selected_{type_key}'] = "Tous"
-        
-    selected_display = st.selectbox(
-        label,
-        ["Tous"] + display_options,
-        index=0,
-        key=f"{type_key}_selector"
-    )
-    
-    selected_code = display_to_code_map.get(selected_display, selected_display) if selected_display != "Tous" else "Tous"
-    
-    st.session_state[f'selected_{type_key}_display'] = selected_display
-    st.session_state[f'selected_{type_key}'] = selected_code
-    
-    return selected_code, selected_display
-
-
-def get_display_name(code: str, type_dict: Dict[str, str]) -> str: 
+def get_display_name(code: str, type_dict: dict) -> str:
     """Converts a code to an explicit name using the provided dictionary."""
-    return type_dict.get(code, code)
+    return get_display_name_from_mapping(code, type_dict)
 
 
-def get_all_types_from_column(players: List[Player], action_type: str, column_name: str, match_filter: Optional[List[str]] = None) -> List[str]: 
+def get_all_types_from_column(players: list, action_type: str, column_name: str, match_filter: list = None) -> list:
     """Retrieves all available types from a given column."""
-    types = set()
-    for player in players:
-        df = player.get_action_df(action_type, match_filter=match_filter)
-        if column_name in df.columns:
-            unique_types = df[column_name].dropna().unique()
-            types.update(unique_types)
-    return sorted(list(types))
+    return get_all_codes_from_column(players, action_type, column_name, match_filter)
 
 
-def get_all_attack_types(players: List[Player], match_filter: Optional[List[str]] = None) -> List[str]: 
+def get_all_attack_types(players: list, match_filter: list = None) -> list:
     """Retrieves all available attack types."""
-    attack_types = set()
-    for player in players:
-        set_df = player.get_action_df("Set", match_filter=match_filter)
-        if set_df.empty or player.df_next_actions is None:
-            continue
-        
-        for idx in set_df.index:
-            if idx in player.df_next_actions.index:
-                next_action = player.df_next_actions.loc[idx]
-                if next_action['skill'] == 'Attack' and 'attack_code' in next_action:
-                    attack_code = next_action['attack_code']
-                    if pd.notna(attack_code):
-                        attack_types.add(attack_code)
-    
-    return sorted(list(attack_types))
+    return get_all_attack_codes_from_next_actions(players, match_filter)
+
+
+def create_type_selector(type_key: str, label: str, display_options: list, display_to_code_map: dict): 
+    """Creates a generic type selector (set or attack)."""
+    return create_type_filter_selector(type_key, label, display_options, display_to_code_map)
 
 
 def calculate_stats_row(passeur: Player, stats: Dict[str, Union[int, float]]) -> Optional[Dict[str, Union[str, int, float]]]: 

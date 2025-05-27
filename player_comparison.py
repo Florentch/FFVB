@@ -47,10 +47,42 @@ def display_player_card(player: Player, selected_skills: list = None, set_moment
         if selected_skills and (match_filter is not None):
             skill_counts = get_skill_counts(player, selected_skills, set_moment, match_filter, set_filter)
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Attaques", skill_counts.get("Attack", 0))
-            col2.metric("Services", skill_counts.get("Serve", 0))
-            col3.metric("Réceptions", skill_counts.get("Reception", 0))
+            # Afficher les métriques selon les compétences sélectionnées
+            # Créer une liste des compétences à afficher avec leurs noms traduits
+            skills_to_display = []
+            for skill in selected_skills:
+                if skill in skill_counts:
+                    skills_to_display.append((skill, translate_skill(skill), skill_counts[skill]))
+            
+            # Afficher en colonnes selon le nombre de compétences
+            if len(skills_to_display) == 1:
+                col1 = st.columns(1)[0]
+                col1.metric(skills_to_display[0][1], skills_to_display[0][2])
+            elif len(skills_to_display) == 2:
+                col1, col2 = st.columns(2)
+                col1.metric(skills_to_display[0][1], skills_to_display[0][2])
+                col2.metric(skills_to_display[1][1], skills_to_display[1][2])
+            elif len(skills_to_display) >= 3:
+                col1, col2, col3 = st.columns(3)
+                col1.metric(skills_to_display[0][1], skills_to_display[0][2])
+                col2.metric(skills_to_display[1][1], skills_to_display[1][2])
+                col3.metric(skills_to_display[2][1], skills_to_display[2][2])
+                
+                # Si plus de 3 compétences, afficher les autres sur une nouvelle ligne
+                if len(skills_to_display) > 3:
+                    remaining_skills = skills_to_display[3:]
+                    if len(remaining_skills) == 1:
+                        col4 = st.columns(1)[0]
+                        col4.metric(remaining_skills[0][1], remaining_skills[0][2])
+                    elif len(remaining_skills) == 2:
+                        col4, col5 = st.columns(2)
+                        col4.metric(remaining_skills[0][1], remaining_skills[0][2])
+                        col5.metric(remaining_skills[1][1], remaining_skills[1][2])
+                    else:
+                        col4, col5, col6 = st.columns(3)
+                        col4.metric(remaining_skills[0][1], remaining_skills[0][2])
+                        col5.metric(remaining_skills[1][1], remaining_skills[1][2])
+                        col6.metric(remaining_skills[2][1], remaining_skills[2][2])
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -96,6 +128,19 @@ def get_players_for_comparison(filtered_players: list) -> dict:
                 player_list.append((full_name_team, p))
     
     return {name: player for name, player in player_list}
+
+def find_default_players(player_dict: dict) -> tuple:
+    """Trouve les joueurs par défaut Andrej Jokanovic et Mathys Lapierre."""
+    default_player1 = None
+    default_player2 = None
+    
+    for name, player in player_dict.items():
+        if "Andrej Jokanovic" in name:
+            default_player1 = name
+        elif "Mathys Lapierre" in name:
+            default_player2 = name
+    
+    return default_player1, default_player2
 
 def generate_comparison_data(player1: Player, player2: Player, skills: list, set_moment: str, match_filter: list, set_filter: list, min_actions: int = 0) -> dict:
     """Generates detailed comparison statistics between two players across multiple skills."""
@@ -157,7 +202,6 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                 "player2": {"r": [], "theta": []}
             }
             
-            # Ajouter les données du meilleur joueur si demandé
             if best_players:
                 player_data["best"] = {"r": [], "theta": []}
             
@@ -168,7 +212,6 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                         player_data[player_key]["theta"].append(skill)
                         player_data[player_key]["r"].append(skill_data["metrics"][metric][player_key])
                     
-                    # Ajouter les données du meilleur joueur pour cette compétence
                     if best_players and skill in best_players:
                         best_player = best_players[skill]
                         best_stats = best_player.get_skill_stats(skill, 
@@ -197,7 +240,6 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                     name=f"{player2.get_full_name()} ({player2.team})"
                 ))
                 
-                # Ajouter la trace du meilleur joueur si demandé
                 if best_players and player_data["best"]["r"]:
                     fig.add_trace(go.Scatterpolar(
                         r=player_data["best"]["r"],
@@ -225,6 +267,24 @@ def display_radar_comparison(comparison_data: dict, player1: Player, player2: Pl
                 
                 st.plotly_chart(fig, use_container_width=True)
 
+def get_ordered_metrics(skill: str, metrics: list) -> list:
+    """Orders metrics with % Efficacité and % Erreur first, excluding % Point for Attack skill."""
+    if skill == "Attack":
+        metrics = [m for m in metrics if m != "% Point"]
+    
+    priority_metrics = ["% Efficacité", "% Erreur"]
+    ordered_metrics = []
+
+    for metric in priority_metrics:
+        if metric in metrics:
+            ordered_metrics.append(metric)
+
+    for metric in metrics:
+        if metric not in priority_metrics:
+            ordered_metrics.append(metric)
+    
+    return ordered_metrics
+
 def display_bar_comparison(comparison_data: dict, player1: Player, player2: Player, selected_skills: list, best_players: dict = None) -> None:
     """Creates bar charts comparing player metrics for each selected skill."""
     if not comparison_data:
@@ -240,27 +300,28 @@ def display_bar_comparison(comparison_data: dict, player1: Player, player2: Play
         
         if not metrics:
             continue
-            
-        values_player1 = [skill_data["metrics"][m]["player1"] for m in metrics]
-        values_player2 = [skill_data["metrics"][m]["player2"] for m in metrics]
+        
+        ordered_metrics = get_ordered_metrics(skill, metrics)
+        
+        values_player1 = [skill_data["metrics"][m]["player1"] for m in ordered_metrics]
+        values_player2 = [skill_data["metrics"][m]["player2"] for m in ordered_metrics]
         
         fig = go.Figure()
         
         fig.add_trace(go.Bar(
-            x=metrics,
+            x=ordered_metrics,
             y=values_player1,
             name=f"{player1.get_full_name()} ({player1.team})",
             marker_color='royalblue'
         ))
         
         fig.add_trace(go.Bar(
-            x=metrics,
+            x=ordered_metrics,
             y=values_player2,
             name=f"{player2.get_full_name()} ({player2.team})",
             marker_color='firebrick'
         ))
         
-        # Ajouter le meilleur joueur si demandé
         if best_players and skill in best_players:
             best_player = best_players[skill]
             best_stats = best_player.get_skill_stats(skill, 
@@ -268,12 +329,12 @@ def display_bar_comparison(comparison_data: dict, player1: Player, player2: Play
                                                    st.session_state.match_filter, 
                                                    st.session_state.comparison_set_filter)
             
-            values_best = [best_stats.get(m, 0) for m in metrics]
+            values_best = [best_stats.get(m, 0) for m in ordered_metrics]
             
             fig.add_trace(go.Bar(
-                x=metrics,
+                x=ordered_metrics,
                 y=values_best,
-                name="Meilleur joueur",
+                name=f"{best_player.get_full_name()} ({best_player.team})",
                 marker_color='gold'
             ))
         
@@ -316,7 +377,6 @@ def display_table_comparison(comparison_data: dict, best_players: dict = None) -
                 "Différence": values["diff"]
             }
             
-            # Ajouter les données du meilleur joueur si disponible
             if best_players and skill in best_players:
                 best_player = best_players[skill]
                 best_stats = best_player.get_skill_stats(skill, 
@@ -410,10 +470,10 @@ def display_face_to_face_comparison(comparison_data: dict, player1: Player, play
 def display_comparison_tabs(comparison_data: dict, player1: Player, player2: Player, selected_skills: list, best_players: dict = None) -> None:
     """Creates a tabbed interface for different comparison visualizations."""
     tabs_data = {
-        "Radar": lambda: display_radar_comparison(comparison_data, player1, player2, best_players),
         "Barres": lambda: display_bar_comparison(comparison_data, player1, player2, selected_skills, best_players),
-        "Tableau": lambda: display_table_comparison(comparison_data, best_players),
-        "Face à Face": lambda: display_face_to_face_comparison(comparison_data, player1, player2, best_players)
+        "Face à Face": lambda: display_face_to_face_comparison(comparison_data, player1, player2, best_players),
+        "Radar": lambda: display_radar_comparison(comparison_data, player1, player2, best_players),
+        "Tableau": lambda: display_table_comparison(comparison_data, best_players)
     }
     
     create_tab_section(tabs_data)
@@ -535,13 +595,16 @@ def make_comparison_tab(players: list) -> None:
         st.warning("Aucun joueur disponible avec les filtres sélectionnés.")
         return
 
+    # Chercher les joueurs par défaut
+    default_player1, default_player2 = find_default_players(player_dict)
+
     # Handle previously selected players that may not be available anymore
     if st.session_state.comparison_player1_option not in all_player_options:
-        st.session_state.comparison_player1_option = all_player_options[0] if all_player_options else None
+        st.session_state.comparison_player1_option = default_player1 if default_player1 else (all_player_options[0] if all_player_options else None)
     
     remaining_options = [p for p in all_player_options if p != st.session_state.comparison_player1_option]
     if st.session_state.comparison_player2_option not in remaining_options:
-        st.session_state.comparison_player2_option = remaining_options[0] if remaining_options else None
+        st.session_state.comparison_player2_option = default_player2 if default_player2 and default_player2 in remaining_options else (remaining_options[0] if remaining_options else None)
 
     # Display player selectors
     with col2:

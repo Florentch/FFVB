@@ -3,8 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from typing import List, Dict, Optional, Union, Tuple
 
-from utils import player_selector, team_selector, get_match_selector, display_in_area
-from visualizations import create_bar_chart, create_pie_chart, create_team_pie_charts
+from utils import player_selector, team_selector, get_match_selector, display_in_area, reorder_dataframe_columns
+from visualizations import create_bar_chart, create_pie_chart, create_team_pie_charts_with_ranking
 from config import SKILL_DISPLAY_METRICS
 from constants import MIN_ACTIONS, KEY_METRICS
 from player import Player
@@ -14,7 +14,7 @@ from ui_utils import display_warning_if_empty
 
 def skill_comparison_tab(players: List[Player], skill: str, label: str = "réceptions", categories: Optional[List[str]] = None) -> None:
     """Main function to create a tab for analyzing specific volleyball skills across players and teams."""
-    st.header(f"📥 Analyse des {label}")
+    st.header(f"Analyse des {label}")
 
     specific_categories = categories or SKILL_DISPLAY_METRICS.get(skill, KEY_METRICS[:2])
     
@@ -81,9 +81,15 @@ def show_team_comparison(players_with_data: List[Player], selected_matches: List
 
 def display_player_stats(players: List[Player], selected_matches: List[str], moment: str, set_filter: Optional[Union[int, List[int]]], skill: str, label: str, categories: List[str], df: pd.DataFrame) -> None:
     """Displays detailed statistics and visualizations for individual players' performance."""
-    st.dataframe(df.set_index("Name"), use_container_width=True)
     
-    fig = create_bar_chart(df, categories)
+    df_display = reorder_dataframe_columns(df)
+    
+    st.dataframe(df_display.set_index("Name"), use_container_width=True)
+    
+    priority_categories = ["% Efficacité", "% Erreur"]
+    chart_categories = priority_categories + [cat for cat in categories if cat not in priority_categories]
+    
+    fig = create_bar_chart(df, chart_categories)
     st.plotly_chart(fig, use_container_width=True)
     
     display_player_ranking(df, categories, skill)
@@ -119,7 +125,7 @@ def display_player_ranking(df: pd.DataFrame, categories: List[str], skill: str) 
 
 def display_team_stats(df: pd.DataFrame, skill: str, label: str, categories: List[str]) -> None:
     """Displays detailed statistics and visualizations for teams' performance."""
-    st.subheader("📊 Statistiques moyennes par équipe")
+    st.subheader("Statistiques moyennes par équipe")
 
     display_df = df.copy()
     for col in display_df.columns:
@@ -127,6 +133,26 @@ def display_team_stats(df: pd.DataFrame, skill: str, label: str, categories: Lis
             new_col = col.replace('% % ', '% ')
             display_df.rename(columns={col: new_col}, inplace=True)
 
+    # Réorganiser avec % Efficacité et % Erreur en premier
+    display_df = reorder_team_dataframe(display_df)
     st.dataframe(display_df.set_index("Team"), use_container_width=True)
 
-    create_team_pie_charts(df, categories, label)
+    create_team_pie_charts_with_ranking(df, categories, label)
+
+def reorder_team_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Réorganise le DataFrame équipe avec % Efficacité et % Erreur en premier."""
+    if df.empty:
+        return df
+    
+    base_columns = ["Team", "Total Count"]
+    priority_columns = ["% Efficacité", "% Erreur"]
+    
+    # Autres colonnes dans l'ordre alphabétique
+    other_columns = sorted([col for col in df.columns 
+                           if col not in base_columns + priority_columns])
+    
+    # Ordre final
+    final_order = base_columns + priority_columns + other_columns
+    final_order = [col for col in final_order if col in df.columns]
+    
+    return df[final_order]

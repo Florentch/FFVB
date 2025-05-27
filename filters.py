@@ -240,3 +240,59 @@ def filter_players_with_data(players: list, match_filter: list = None, skill: st
         if p.get_action_df(skill, set_moment=effective_moment, match_filter=match_filter, set_filter=set_filter) is not None
         and len(p.get_action_df(skill, set_moment=effective_moment, match_filter=match_filter, set_filter=set_filter)) > min_actions
     ]
+
+def get_all_codes_from_column(players: list, action_type: str, column_name: str, match_filter: list = None) -> list:
+    """Récupère tous les codes disponibles d'une colonne donnée pour une action."""
+    codes = set()
+    for player in players:
+        df = player.get_action_df(action_type, match_filter=match_filter)
+        if column_name in df.columns:
+            unique_codes = df[column_name].dropna().unique()
+            codes.update(unique_codes)
+    return sorted(list(codes))
+
+
+def get_all_attack_codes_from_next_actions(players: list, match_filter: list = None) -> list:
+    """Récupère tous les codes d'attaque disponibles à partir des actions suivantes."""
+    attack_codes = set()
+    for player in players:
+        set_df = player.get_action_df("Set", match_filter=match_filter)
+        if set_df.empty or player.df_next_actions is None:
+            continue
+        
+        for idx in set_df.index:
+            if idx in player.df_next_actions.index:
+                next_action = player.df_next_actions.loc[idx]
+                if next_action['skill'] == 'Attack' and 'attack_code' in next_action:
+                    attack_code = next_action['attack_code']
+                    if pd.notna(attack_code):
+                        attack_codes.add(attack_code)
+    
+    return sorted(list(attack_codes))
+
+
+def get_display_name_from_mapping(code: str, mapping_dict: dict) -> str:
+    """Convertit un code en nom d'affichage en utilisant le dictionnaire de mapping."""
+    return mapping_dict.get(code, code)
+
+
+def create_type_filter_selector(type_key: str, label: str, display_options: list, 
+                               display_to_code_map: dict, default_index: int = 0):
+    """Crée un sélecteur générique pour filtrer par type (passe, attaque, etc.)."""
+    if f'selected_{type_key}_display' not in st.session_state:
+        st.session_state[f'selected_{type_key}_display'] = "Tous"
+        st.session_state[f'selected_{type_key}'] = "Tous"
+        
+    selected_display = st.selectbox(
+        label,
+        ["Tous"] + display_options,
+        index=default_index,
+        key=f"{type_key}_selector"
+    )
+    
+    selected_code = display_to_code_map.get(selected_display, selected_display) if selected_display != "Tous" else "Tous"
+    
+    st.session_state[f'selected_{type_key}_display'] = selected_display
+    st.session_state[f'selected_{type_key}'] = selected_code
+    
+    return selected_code, selected_display

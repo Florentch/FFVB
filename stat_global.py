@@ -164,11 +164,8 @@ def global_stats_tab(players: List[Player]) -> None:
     else:
         st.warning(f"Aucune donnée pour les joueurs {MAIN_TEAM}.")
     
-    team_help = common_help + [
-        "Chaque ligne correspond à une équipe.",
-        "Meilleurs en vert, moins bons en rouge (inversé pour erreurs)."
-    ]
-
+    team_help = []
+    
     df_teams = build_stats_df(players, mode="teams")
     display_stats_section(
         "Statistique globale – Par équipe", 
