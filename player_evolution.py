@@ -57,13 +57,39 @@ def player_evolution_tab(players: list) -> None:
     
     selected_player = next((p for p in players_with_data if f"{p.first_name} {p.last_name}" == selected_name), None)
 
+    # Ajout des champs de saisie pour les objectifs personnalisés
+    st.subheader("Objectifs personnalisés")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        default_efficiency = DEFAULT_THRESHOLDS.get(skill, 25)
+        custom_efficiency_target = st.number_input(
+            "Objectif % Efficacité", 
+            min_value=0, 
+            max_value=100, 
+            value=default_efficiency,
+            step=1,
+            help="Définissez l'objectif d'efficacité en pourcentage"
+        )
+    
+    with col2:
+        default_error = DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
+        custom_error_target = st.number_input(
+            "Objectif % Erreur (max)", 
+            min_value=0, 
+            max_value=100, 
+            value=default_error,
+            step=1,
+            help="Définissez l'objectif maximum d'erreur en pourcentage"
+        )
+
     if selected_player:
         # Convert set selection to filter format
         set_filter = None if selected_set == "Tous les sets" else [selected_set]
-        display_player_evolution(selected_player, moment, skill, set_filter, attack_type)
+        display_player_evolution(selected_player, moment, skill, set_filter, attack_type, custom_efficiency_target, custom_error_target)
 
 
-def display_player_evolution(player: Player, moment: str, skill: str, set_filter: list = None, attack_type: str = None) -> None:
+def display_player_evolution(player: Player, moment: str, skill: str, set_filter: list = None, attack_type: str = None, efficiency_target: int = None, error_target: int = None) -> None:
     """
     Displays a player's performance evolution for a given skill.
     
@@ -147,17 +173,23 @@ def display_player_evolution(player: Player, moment: str, skill: str, set_filter
         st.dataframe(display_df)
 
     target_label = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])[0]
-    target_default = DEFAULT_THRESHOLDS.get(skill, 25)
+    
+    # Utiliser les objectifs personnalisés ou les valeurs par défaut
+    target_default = efficiency_target if efficiency_target is not None else DEFAULT_THRESHOLDS.get(skill, 25)
+    error_threshold = error_target if error_target is not None else DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
 
-    create_evolution_chart(stats_df, target_default, skill)
-    display_global_stats(player, skill, moment, selected_matches, target_default, target_label, stats_df, set_filter, attack_type)
+    create_evolution_chart(stats_df, target_default, skill, error_threshold)
+    display_global_stats(player, skill, moment, selected_matches, target_default, target_label, stats_df, set_filter, attack_type, error_threshold)
 
 
-def display_global_stats(player: Player, skill: str, moment: str, selected_matches: list, target: int, target_label: str, stats_df: pd.DataFrame, set_filter: list = None, attack_type: str = None) -> None:
+def display_global_stats(player: Player, skill: str, moment: str, selected_matches: list, target: int, target_label: str, stats_df: pd.DataFrame, set_filter: list = None, attack_type: str = None, error_threshold: int = None) -> None:
     """Displays global statistics for selected matches."""
     st.subheader("Statistiques globales")
     global_stats = get_skill_stats_with_attack_filter(player, skill, moment, selected_matches, set_filter, attack_type)
-    error_threshold = DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
+    
+    # Utiliser le seuil d'erreur personnalisé ou la valeur par défaut
+    if error_threshold is None:
+        error_threshold = DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
     
     # Calculate stability based on first efficiency metric if available
     stability = None
@@ -235,11 +267,13 @@ def get_skill_stats_with_attack_filter(player: Player, skill: str, moment: str, 
         return player.get_skill_stats(skill, moment, match_filter=match_filter, set_filter=set_filter)
 
 
-def create_evolution_chart(stats_df: pd.DataFrame, target: int, skill: str) -> None:
+def create_evolution_chart(stats_df: pd.DataFrame, target: int, skill: str, error_threshold: int = None) -> None:
     """Creates a performance evolution chart over matches."""
     skill_labels = SKILL_DISPLAY_METRICS.get(skill, ["% Efficacité"])
     
-    error_threshold = DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
+    # Utiliser le seuil d'erreur personnalisé ou la valeur par défaut
+    if error_threshold is None:
+        error_threshold = DEFAULT_THRESHOLDS.get(f"{skill}_Error", 15)
     
     fig = viz_create_evolution_chart(stats_df, target, skill_labels, error_threshold)
     st.plotly_chart(fig, use_container_width=True)

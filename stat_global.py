@@ -20,9 +20,14 @@ def get_stats_row(entity: Union[Player, Team], name: str, labels_map: Dict[str, 
         if not skill_labels:
             continue
 
-        # Use a consistent way to get first and last label based on skill
-        first_label = "% Jouable" if skill == "Set" else skill_labels[0]
-        last_label = skill_labels[-2]  # Usually the error label
+        # Pour la passe (Set), on garde % Jouable et % Faute
+        if skill == "Set":
+            first_label = "% Jouable"
+            last_label = "% Faute"
+        else:
+            # Pour tous les autres skills, on utilise % Efficacité et % Erreur
+            first_label = "% Efficacité"
+            last_label = "% Erreur"
 
         stats[f"n {skill}"] = int(total)
         stats[f"{skill}_{first_label}"] = skill_stats.get(first_label, np.nan) if total >= MIN_ACTIONS else np.nan
@@ -131,7 +136,6 @@ def global_stats_tab(players: List[Player]) -> None:
     """Displays both the CNVB and team global statistics."""
     common_help = [
         f"Seuil minimal d'actions pour inclusion : {MIN_ACTIONS} actions.",
-        "\"-\" signifie que le joueur n'a pas atteint le seuil minimal."
     ]
 
     player_help = common_help + [
